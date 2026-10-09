@@ -1,0 +1,43 @@
+---
+title: "MCP server"
+description: "Let AI agents use a SendFlit account through the Model Context Protocol."
+---
+
+SendFlit runs an MCP (Model Context Protocol) server at `https://api.sendflit.com/mcp`. AI agents connect to it with a SendFlit API key and can call tools to send email, manage contacts and lists, and work with broadcasts and automations.
+
+## Connect an agent
+
+The server speaks JSON-RPC 2.0 over HTTP. Authenticate with your API key as a bearer token:
+
+```bash
+curl -X POST https://api.sendflit.com/mcp \
+  -H "Authorization: Bearer $SENDFLIT_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
+```
+
+`tools/list` returns the tools that the calling key may use. A key with a narrow scope sees fewer tools.
+
+## Permissions
+
+Every tool call is a real request to the matching REST endpoint, with the same key. A tool gets exactly what the endpoint allows: scope checks, validation, quotas, and the content check on broadcasts. An agent can't do more through MCP than its key can do over HTTP.
+
+Agent keys can also have limits and require approval for certain actions. Configure these in the dashboard.
+
+## Tools
+
+| Area | Tools |
+|---|---|
+| Account and metrics | `get_account`, `get_metrics` |
+| Sending | `send_email`, `schedule_email`, `list_emails` |
+| Contacts and lists | `add_contact`, `track_event`, `list_lists`, `create_list`, `add_to_list`, `list_segments`, `preview_audience`, `create_segment` |
+| Templates | `list_templates`, `create_template`, `render_design` |
+| Broadcasts | `list_broadcasts`, `get_broadcast`, `create_broadcast`, `update_broadcast`, `send_broadcast` |
+| Automations | `list_automations`, `get_automation`, `create_automation`, `update_automation`, `start_automation`, `pause_automation` |
+| Forms and requests | `list_forms`, `create_form`, `get_request` |
+| Domains | `add_domain` |
+| AI assistance | `ai_compose`, `ai_subjects`, `ai_insights`, `ai_segment`, `ai_automation` |
+
+## Errors
+
+A call that fails on its input returns a result with `isError` set and the reason in the text, so an agent can correct its input and try again. A call the key isn't allowed to make returns a JSON-RPC error.

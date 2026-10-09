@@ -1,0 +1,40 @@
+---
+title: "Switching from Resend"
+description: "Move an existing Resend integration to SendFlit by changing the API key and base URL."
+---
+
+SendFlit has a Resend-compatible API at `https://api.sendflit.com/resend`. Requests and responses use Resend's shapes, including its error format, so moving usually means changing the key and the base URL.
+
+## Steps
+
+1. **Verify your domain** in SendFlit. See the [Quickstart](/quickstart#1-add-your-sending-domain).
+2. **Create a SendFlit API key** with the `sending` scope.
+3. **Change the base URL and key:**
+
+| Before (Resend) | After (SendFlit) |
+|---|---|
+| `https://api.resend.com` | `https://api.sendflit.com/resend` |
+| `re_...` (Resend key) | `re_...` (SendFlit key) |
+
+With the Resend Node SDK, set the `RESEND_BASE_URL` environment variable to `https://api.sendflit.com/resend` and use your SendFlit key. With other SDKs or plain HTTP, point the client at the same base URL.
+
+4. **Send a test email** and check its status.
+
+## What's supported
+
+- Sending: single emails, batch sends, scheduled sends, and cancelling and rescheduling.
+- Reading emails back.
+- Domains: create, list, get, and verify.
+
+## What isn't supported yet
+
+- More than one address in `to`. Use `cc` and `bcc`, or send one email per recipient with the batch endpoint.
+- Attachments by URL.
+- Natural-language scheduling, such as "in 1 hour". Use an ISO 8601 timestamp.
+- Audiences, contacts, broadcasts, and API key endpoints.
+
+Unsupported endpoints return a clear `validation_error` or `404` instead of partially working.
+
+## Webhooks
+
+Create the webhook endpoint in SendFlit with the Resend-compatible format. The payload and the Svix-style signature headers then match Resend's, so the verification code you already have keeps working. See [Webhooks](/reference/webhooks).

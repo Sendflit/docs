@@ -52,6 +52,14 @@
           "reference/security",
           "reference/changelog"
         ]
+      },
+      {
+        "group": "Guides",
+        "pages": [
+          "guides/switching-from-resend",
+          "guides/smtp",
+          "guides/mcp-server"
+        ]
       }
     ]
   }
