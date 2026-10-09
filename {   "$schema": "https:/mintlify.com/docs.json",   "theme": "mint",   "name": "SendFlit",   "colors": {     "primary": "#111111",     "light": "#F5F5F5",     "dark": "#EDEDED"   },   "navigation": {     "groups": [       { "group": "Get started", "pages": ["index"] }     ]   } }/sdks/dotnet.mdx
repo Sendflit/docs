@@ -41,12 +41,12 @@ await sf.BatchAsync(new List<Email> { emailA, emailB });
 
 ## Verify webhooks
 
+See [Webhooks](/reference/webhooks) for the event list.
+
 ```csharp
 bool ok = Client.VerifyWebhookSignature(secret, rawBody, signatureHeader);
 ```
 
-See [Webhooks](/reference/webhooks) for the event list.
-
 ## Async and errors
 
-Every call is async and takes a `CancellationToken`. Failed requests throw `SendFlitException`, with `.Status` and `.Body` properties. Retries cover 429 and 5xx responses, and `Retry-After` is honored. See [Errors, retries and limits](/reference/errors).
+Every call is async and takes a `CancellationToken`. Failed requests throw `SendFlitException`, with `.Status` and `.Body` properties. See [Errors, retries and limits](/reference/errors).

@@ -3,7 +3,7 @@ title: "Errors, retries and limits"
 description: "HTTP status codes, safe retries with idempotency keys, batch behavior and sending limits."
 ---
 
-Every error response is JSON with a `detail` field that explains what went wrong. The SDKs throw an error that carries the status code and body, so you can handle it in one place.
+Every error response is JSON with a `detail` field that explains what went wrong. The SDKs throw an error that carries the status code and body.
 
 ## Status codes
 
@@ -20,9 +20,9 @@ Every error response is JSON with a `detail` field that explains what went wrong
 
 ## Retries
 
-The SDKs retry `429` and `5xx` responses automatically with exponential backoff. They honor the `Retry-After` header when it's present. The default is 2 retries; change it with `maxRetries` (Node.js) or `max_retries` (Python). If every attempt fails, the SDK throws the last error.
+The SDKs retry `429` and `5xx` responses automatically with exponential backoff, and honor the `Retry-After` header when it's present. The default is 2 retries. Change it with `maxRetries` (Node.js) or `max_retries` (Python). If every attempt fails, the SDK throws the last error.
 
-Retrying a `4xx` other than `429` won't help, because the request itself is the problem.
+Don't retry other `4xx` responses unchanged, because the request itself is the problem.
 
 ## Idempotency
 
@@ -31,7 +31,7 @@ Send an `Idempotency-Key` header with `POST /v1/email` or `POST /v1/emails/batch
 - **Same key, same body:** SendFlit returns the original result and doesn't send again. This is the safe retry case, for example after a network timeout.
 - **Same key, different body:** the request is rejected with `409`. This means your client has a bug. Generate a new key for a new email.
 
-The SDKs take the key as an argument. The Node.js and Python SDKs support it today, and the other SDKs don't expose it yet.
+The Node.js and Python SDKs take the key as an argument. The other SDKs don't expose it yet.
 
 ```bash
 curl -X POST https://api.sendflit.com/v1/email \

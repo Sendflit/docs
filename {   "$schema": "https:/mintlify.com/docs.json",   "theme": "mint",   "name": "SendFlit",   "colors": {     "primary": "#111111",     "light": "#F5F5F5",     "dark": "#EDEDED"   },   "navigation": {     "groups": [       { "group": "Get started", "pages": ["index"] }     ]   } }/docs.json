@@ -121,16 +121,22 @@
           "sdks/python",
           "sdks/ruby",
           "sdks/php",
-          "sdks/java"
+          "sdks/java",
+          "sdks/dotnet"
         ]
       },
       {
         "group": "Email templates",
-        "pages": []
+        "pages": [
+          "sdks/templates/react-email"
+        ]
       },
       {
         "group": "Reference",
-        "pages": []
+        "pages": [
+          "reference/errors",
+          "reference/webhooks"
+        ]
       }
     ]
   }
