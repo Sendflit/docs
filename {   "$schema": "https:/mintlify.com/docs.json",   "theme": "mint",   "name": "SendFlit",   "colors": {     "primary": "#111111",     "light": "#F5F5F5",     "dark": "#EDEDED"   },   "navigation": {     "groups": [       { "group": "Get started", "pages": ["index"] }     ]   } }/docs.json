@@ -118,6 +118,14 @@
         "pages": [
           "sdks/go"
         ]
+      },
+      {
+        "group": "Email templates",
+        "pages": []
+      },
+      {
+        "group": "Reference",
+        "pages": []
       }
     ]
   }
