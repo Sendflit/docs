@@ -1,0 +1,51 @@
+---
+title: "Ruby"
+description: "Send transactional email from Ruby with the sendflit gem. Standard library only."
+---
+
+## Install
+
+```bash
+gem install sendflit
+```
+
+Or add it to your `Gemfile`:
+
+```ruby
+gem "sendflit"
+```
+
+## Send an email
+
+```ruby
+require "sendflit"
+
+sf = SendFlit.new(api_key: "re_...")
+
+res = sf.send(
+  from: "you@yourdomain.com",
+  to: "user@example.com",
+  subject: "Confirm your email",
+  html: "<p>Click <a href='...'>here</a>.</p>"
+)
+puts res["id"], res["status"]
+```
+
+## Attachments and batch send
+
+```ruby
+sf.send(from: "billing@yourdomain.com", to: "u@example.com", subject: "Receipt",
+        attachments: [{filename: "receipt.pdf", content: pdf_bytes}])
+
+sf.batch([{from: "you@yourdomain.com", to: "a@example.com", subject: "Hi", html: "<p>A</p>"}])
+```
+
+## Verify webhooks
+
+```ruby
+SendFlit.verify_webhook_signature(SECRET, raw_body, env["HTTP_X_SENDFLIT_SIGNATURE"])
+```
+
+## Errors
+
+Failed requests raise `SendFlit::Error`, with `.status` and `.body` attributes. Retries cover 429 and 5xx responses, and `Retry-After` is honored.

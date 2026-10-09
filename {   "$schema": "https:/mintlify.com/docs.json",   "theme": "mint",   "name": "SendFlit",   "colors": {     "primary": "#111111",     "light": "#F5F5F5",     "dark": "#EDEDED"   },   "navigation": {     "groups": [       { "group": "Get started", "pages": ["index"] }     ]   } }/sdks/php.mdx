@@ -1,0 +1,49 @@
+---
+title: "PHP"
+description: "Send transactional email from PHP 7.4+ with the sendflit/sendflit Composer package."
+---
+
+## Install
+
+```bash
+composer require sendflit/sendflit
+```
+
+Requires PHP 7.4 or later with the `curl` and `json` extensions.
+
+## Send an email
+
+```php
+require 'vendor/autoload.php';
+
+$sf = new SendFlit('re_...');
+
+$res = $sf->send([
+    'from'    => 'you@yourdomain.com',
+    'to'      => 'user@example.com',
+    'subject' => 'Confirm your email',
+    'html'    => "<p>Click <a href='...'>here</a>.</p>",
+]);
+echo $res['id'], $res['status'];
+```
+
+## Attachments and batch send
+
+```php
+$sf->send([
+    'from' => 'billing@yourdomain.com', 'to' => 'u@example.com', 'subject' => 'Receipt',
+    'attachments' => [['filename' => 'receipt.pdf', 'content' => $pdfBytes]],
+]);
+
+$sf->batch([ ['from' => 'you@yourdomain.com', 'to' => 'a@example.com', 'subject' => 'Hi'] ]);
+```
+
+## Verify webhooks
+
+```php
+$ok = SendFlit::verifyWebhookSignature($secret, $rawBody, $_SERVER['HTTP_X_SENDFLIT_SIGNATURE'] ?? '');
+```
+
+## Errors
+
+Failed requests throw `SendFlitException`. Use `getCode()` for the HTTP status and `->body` for the response body. Retries cover 429 and 5xx responses, and `Retry-After` is honored.
