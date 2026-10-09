@@ -45,26 +45,29 @@
     "display": "header"
   },
   "navigation": {
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "icon": "book-open-cover",
-          "href": "https://mintlify.com/docs"
-        },
-        {
-          "anchor": "Blog",
-          "icon": "newspaper",
-          "href": "https://mintlify.com/blog"
-        }
-      ]
-    },
     "pages": [
       {
         "group": "Getting Started",
         "pages": [
-          "index",
-          "quickstart"
+          "index"
+        ]
+      },
+      {
+        "group": "SDKs",
+        "pages": [
+          "sdks/node",
+          "sdks/python",
+          "sdks/go",
+          "sdks/ruby",
+          "sdks/php",
+          "sdks/java",
+          "sdks/dotnet"
+        ]
+      },
+      {
+        "group": "Email templates",
+        "pages": [
+          "sdks/templates/react-email"
         ]
       },
       {
