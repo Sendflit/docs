@@ -112,6 +112,12 @@
           "reference/errors",
           "reference/webhooks"
         ]
+      },
+      {
+        "group": "SDKs",
+        "pages": [
+          "sdks/go"
+        ]
       }
     ]
   }
