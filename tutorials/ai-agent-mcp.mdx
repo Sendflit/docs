@@ -1,0 +1,61 @@
+---
+title: "Let an AI agent send email with MCP"
+description: "Connect an MCP-compatible AI agent to SendFlit, list the tools it can use, and send an email through the MCP server."
+---
+
+The SendFlit [MCP server](/guides/mcp-server) lets an AI agent use your account through tools: sending email, managing contacts, and drafting broadcasts. In this tutorial you call the server directly with JSON-RPC, then connect an agent.
+
+<Note>
+**You'll need:** an API key with the `sending` scope, and a verified sending domain.
+</Note>
+
+<Steps>
+  <Step title="List the tools this key can use">
+    ```bash
+    curl -X POST https://api.sendflit.com/mcp \
+      -H "Authorization: Bearer $SENDFLIT_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
+    ```
+
+    A key with `sending` scope sees the sending tools. A `read` key sees only the read tools.
+  </Step>
+
+  <Step title="Call send_email">
+    ```bash
+    curl -X POST https://api.sendflit.com/mcp \
+      -H "Authorization: Bearer $SENDFLIT_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "send_email",
+          "arguments": {
+            "from": "hello@yourdomain.com",
+            "to": "user@example.com",
+            "subject": "Your report is ready",
+            "text": "The monthly report is attached in your dashboard."
+          }
+        }
+      }'
+    ```
+
+    `send_email` takes `from`, `to`, and either `subject` with `html` or `text`, or a `template_name` with `variables`. Add `scheduled_at` to send later.
+  </Step>
+
+  <Step title="Connect an agent">
+    Point your MCP-compatible client at `https://api.sendflit.com/mcp` and give it the key as a bearer token. The server sends its own instructions to the agent on connect, so the agent knows to check the account before it sends.
+  </Step>
+
+  <Step title="Handle approvals">
+    An agent key can be set up to need your approval for some actions. A call that needs approval returns a request. Review it in the dashboard, or read its decision with `get_request`.
+  </Step>
+</Steps>
+
+## Tips
+
+- Give agents their own key with the smallest scope they need. Use `sending` for agents that only send.
+- Keep an eye on the agent's sends. Use `list_emails` to review what it sent.
+- For a full list of tools, see the [MCP server guide](/guides/mcp-server).

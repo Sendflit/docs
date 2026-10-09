@@ -1,0 +1,56 @@
+---
+title: "Idempotency and safe retries"
+description: "Make email sends safe to retry after timeouts and failures by using idempotency keys correctly."
+---
+
+Network calls fail in ways that leave you unsure whether a request succeeded. If you retry a send, the email may go out twice. An idempotency key makes retries safe.
+
+## How it works
+
+Send an `Idempotency-Key` header with `POST /v1/email` or `POST /v1/emails/batch`:
+
+- **Same key, same body:** SendFlit returns the original result and does not send again.
+- **Same key, different body:** the request is rejected with `409`. Your client has a bug. Use a new key for a new email.
+
+```bash
+curl -X POST https://api.sendflit.com/v1/email \
+  -H "Authorization: Bearer $SENDFLIT_KEY" \
+  -H "Idempotency-Key: order-4471-receipt" \
+  -H "Content-Type: application/json" \
+  -d '{"from": "billing@yourdomain.com", "to": "user@example.com", "subject": "Receipt", "html": "<p>Thanks!</p>"}'
+```
+
+## Choose a good key
+
+The key should identify the business event, so every attempt at the same event uses the same key:
+
+| Good key | Why |
+|---|---|
+| `order-4471-receipt` | One receipt per order. |
+| `welcome-<user_id>` | One welcome email per user. |
+| `digest-2026-09-01-<user_id>` | One digest per user per day. |
+
+Avoid keys that change on each attempt, such as random values or timestamps, because they defeat the purpose. Avoid keys that are too broad, such as `receipts`, because they block unrelated emails.
+
+## SDK support
+
+The Node.js and Python SDKs take the key as an argument:
+
+```js
+await sendflit.send(email, `order-${orderId}-receipt`);
+```
+
+```python
+sf.send(from_=..., to=..., subject=..., html=..., idempotency_key=f"order-{order_id}-receipt")
+```
+
+The other SDKs don't expose the header yet. Call the REST API directly to use it from those languages.
+
+## Retry safely
+
+1. Retry only `429`, `5xx`, and network timeouts.
+2. Reuse the same key on every retry.
+3. Stop retrying after a sensible limit, and record the failure.
+4. Treat `409` as a bug to fix, not something to retry.
+
+See [Errors, retries and limits](/reference/errors) for the full list.

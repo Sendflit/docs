@@ -34,6 +34,25 @@
         ]
       },
       {
+        "group": "Tutorials",
+        "pages": [
+          "tutorials/node-welcome-email",
+          "tutorials/handle-bounces",
+          "tutorials/react-email-template",
+          "tutorials/ai-agent-mcp"
+        ]
+      },
+      {
+        "group": "Guides",
+        "pages": [
+          "guides/idempotency",
+          "guides/batch-sending",
+          "guides/smtp",
+          "guides/switching-from-resend",
+          "guides/mcp-server"
+        ]
+      },
+      {
         "group": "SDKs",
         "pages": [
           "sdks/node",
@@ -59,14 +78,6 @@
           "reference/webhooks",
           "reference/security",
           "reference/changelog"
-        ]
-      },
-      {
-        "group": "Guides",
-        "pages": [
-          "guides/switching-from-resend",
-          "guides/smtp",
-          "guides/mcp-server"
         ]
       }
     ]

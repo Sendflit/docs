@@ -1,0 +1,113 @@
+---
+title: "Handle bounces and complaints with webhooks"
+description: "Receive SendFlit webhooks, verify their signatures, and react to bounces, complaints and delivery events."
+---
+
+Bounces and spam complaints damage your sending reputation. SendFlit suppresses addresses that hard bounce or get a complaint, so future sends to them are refused with `403`. In this tutorial you add a webhook endpoint that records those events in your own database and tells you when something needs attention.
+
+<Note>
+**You'll need:** a publicly reachable HTTPS URL for your server, and a webhook endpoint created in the dashboard with the events `email.bounced`, `email.complained`, and `email.delivered`. Copy the signing secret when you create it.
+</Note>
+
+<Steps>
+  <Step title="Add the endpoint in the dashboard">
+    In the dashboard, add an endpoint pointing to `https://yourapp.example.com/webhooks/sendflit`. Select the events above and choose the SendFlit payload format. Copy the signing secret.
+  </Step>
+
+  <Step title="Verify and route each event">
+    The body must be read raw. Don't use a JSON parser before the signature check.
+
+    <Tabs>
+      <Tab title="Node.js (Express)">
+        ```js
+        import express from "express";
+        import { verifyWebhookSignature } from "@sendflit/sdk";
+
+        const app = express();
+        const SECRET = process.env.SENDFLIT_WEBHOOK_SECRET;
+
+        app.post(
+          "/webhooks/sendflit",
+          express.raw({ type: "application/json" }),
+          async (req, res) => {
+            const signature = req.headers["x-sendflit-signature"];
+            if (!verifyWebhookSignature(SECRET, req.body, signature)) {
+              return res.status(401).end();
+            }
+
+            const event = JSON.parse(req.body);
+            const { type, data } = event;
+
+            // Respond first, then do the slow work.
+            res.status(200).end();
+
+            switch (type) {
+              case "email.bounced":
+              case "email.complained":
+                await suppressAddress(data.to, type); // your code
+                await alertTeam(`${type} for ${data.to}`); // your code
+                break;
+              case "email.delivered":
+                await markDelivered(data.id); // your code
+                break;
+            }
+          }
+        );
+
+        app.listen(3000);
+        ```
+      </Tab>
+      <Tab title="Python (Flask)">
+        ```python
+        import hmac, hashlib, json
+        from flask import Flask, request
+
+        app = Flask(__name__)
+        SECRET = os.environ["SENDFLIT_WEBHOOK_SECRET"]
+
+        @app.post("/webhooks/sendflit")
+        def sendflit_webhook():
+            raw = request.get_data()  # raw bytes, before any parsing
+            expected = "sha256=" + hmac.new(SECRET.encode(), raw, hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(expected, request.headers.get("X-Sendflit-Signature", "")):
+                return "", 401
+
+            event = json.loads(raw)
+            if event["type"] in ("email.bounced", "email.complained"):
+                suppress_address(event["data"]["to"], event["type"])  # your code
+            return "", 200
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Make processing idempotent">
+    Deliveries can repeat. Record each event's email `id` and type, and skip events you've already handled:
+
+    ```sql
+    CREATE TABLE email_events (
+      email_id   TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      received_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (email_id, event_type)
+    );
+    ```
+
+    Insert the row before acting. If the insert fails because the row exists, return `200` without repeating the work.
+  </Step>
+
+  <Step title="Test the endpoint">
+    Send a test email to an address that will bounce, and confirm your handler receives `email.bounced` and returns `200`. Then send a request with a wrong signature, such as `curl` with a made-up `X-Sendflit-Signature`, and confirm it returns `401`.
+  </Step>
+</Steps>
+
+## What to do with each event
+
+| Event | Action |
+|---|---|
+| `email.bounced` | Stop emailing the address. Flag the account if it's a signup. |
+| `email.complained` | Remove the contact from marketing lists. Review the content. |
+| `email.delivered` | Update your records. Don't send more mail on it. |
+| `email.delivery_delayed` | Log it. Only act if it doesn't resolve. |
+
+Read the full list in the [webhook reference](/reference/webhooks).

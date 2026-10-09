@@ -25,12 +25,12 @@ Each endpoint has its own signing secret, shown once when you create it.
 | `email.complained` | The recipient marked the message as spam. | Yes |
 | `email.opened` | The tracking pixel loaded. | No |
 | `email.clicked` | A tracked link was followed. | No |
-| `email.unsubscribed` | The recipient used the unsubscribe link. | Yes |
+| `email.unsubscribed` | The recipient used the unsubscribe link. The contact is marked unsubscribed. | No |
 | `email.failed` | We couldn't hand the message off. | No |
 | `email.cancelled` | A scheduled email was cancelled. | No |
-| `inbound.email` | An email arrived at a receiving address. | No |
-| `reply.received` | A reply was received to a tracked conversation. | No |
-| `reply.lead` | A reply was classified as a lead. | No |
+| `inbound.email` | An email arrived at one of your receiving addresses. | No |
+| `reply.received` | A reply was received. | No |
+| `reply.lead` | A reply was flagged as a lead. | No |
 
 Transient bounces, such as a full mailbox, don't suppress the address and don't produce `email.bounced`.
 
