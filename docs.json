@@ -20,7 +20,10 @@
     "groups": [
       {
         "group": "Get started",
-        "pages": ["index", "quickstart"]
+        "pages": [
+          "index",
+          "quickstart"
+        ]
       },
       {
         "group": "SDKs",
@@ -36,11 +39,19 @@
       },
       {
         "group": "Email templates",
-        "pages": ["sdks/templates/react-email"]
+        "pages": [
+          "sdks/templates/react-email"
+        ]
       },
       {
         "group": "Reference",
-        "pages": ["reference/errors", "reference/webhooks"]
+        "pages": [
+          "reference/api-overview",
+          "reference/errors",
+          "reference/webhooks",
+          "reference/security",
+          "reference/changelog"
+        ]
       }
     ]
   }

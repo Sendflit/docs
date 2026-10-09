@@ -1,0 +1,69 @@
+---
+title: "API overview"
+description: "Base URL, versioning, authentication, endpoints and conventions for the SendFlit v1 REST API."
+---
+
+The SendFlit API is a JSON REST API over HTTPS.
+
+| Item | Value |
+|---|---|
+| Base URL | `https://api.sendflit.com/v1` |
+| Current version | v1 (initial release, see the [changelog](/reference/changelog)) |
+| Format | JSON request and response bodies, UTF-8 |
+| Authentication | `Authorization: Bearer re_...` on every request except the health check |
+| Health check | `GET https://api.sendflit.com/health`, returns `{"status":"ok","service":"sendflit","version":"1.0.0"}` |
+
+## Versioning
+
+The version is part of the URL path. v1 is the current stable version. Within v1 we add new endpoints and optional fields without breaking existing integrations. Any breaking change ships under a new path version, and v1 keeps working while you migrate. The `version` field in the health response reports the build of the service, so it can change between deployments even within v1.
+
+## Authentication
+
+Send your API key as a bearer token. Each key has a scope that limits what it can do:
+
+| Scope | Can do |
+|---|---|
+| `full` | Everything, including key and domain management. |
+| `sending` | Send email and read its delivery status. |
+| `read` | Read-only. Cannot send. |
+
+A request with a missing, invalid or revoked key returns `401`. A request with a valid key that lacks the scope for the action returns `403`. See [Security](/reference/security).
+
+## Endpoints
+
+### Emails
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/v1/email` | Send one email. Supports `Idempotency-Key`. |
+| `POST` | `/v1/emails/batch` | Send up to 100 emails. Supports `Idempotency-Key`. Returns a result per message. |
+| `GET` | `/v1/emails` | List emails. |
+| `GET` | `/v1/emails/{id}` | Get one email and its delivery status. |
+| `PATCH` | `/v1/emails/{id}` | Update a scheduled email. |
+| `POST` | `/v1/emails/{id}/cancel` | Cancel a scheduled email. |
+| `DELETE` | `/v1/emails/{id}` | Cancel a scheduled email. |
+
+### Domains
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/v1/domains` | Register a sending domain. Returns the DNS records to publish. |
+| `GET` | `/v1/domains` | List domains. |
+| `GET` | `/v1/domains/{id}` | Get one domain. |
+| `POST` | `/v1/domains/{id}/verify` | Check the DNS records and verify the domain. |
+
+### Keys, webhooks and usage
+
+| Method | Path | Purpose |
+|---|---|---|
+| `DELETE` | `/v1/keys/{id}` | Revoke an API key immediately. |
+| `GET` | `/v1/usage` | Current usage against your plan's quotas. |
+
+Webhook endpoints are managed in the dashboard. Events are delivered as described in [Webhooks](/reference/webhooks).
+
+## Conventions
+
+- **Errors** are JSON with a `detail` field. See [Errors, retries and limits](/reference/errors).
+- **Idempotency:** send an `Idempotency-Key` header with send and batch requests so a retry never sends twice.
+- **Timestamps** are ISO 8601 in UTC, for example `2026-09-01T09:00:00Z`.
+- **Rate limits** apply per API key, per second, and depend on your plan. Daily and monthly quotas apply per account.

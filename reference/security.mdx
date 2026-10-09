@@ -1,0 +1,40 @@
+---
+title: "Security"
+description: "How SendFlit protects API keys, sending domains, webhook deliveries and email data, and what you should do on your side."
+---
+
+This page describes the security controls in SendFlit and the practices we recommend for your integration.
+
+## API keys
+
+- Keys are shown once, when you create them. We store only a SHA-256 hash, so we can't show a key again. If a key is lost, create a new one.
+- Each key has a scope (`full`, `sending`, or `read`). Give each service its own key with the smallest scope it needs.
+- Revoke a key with `DELETE /v1/keys/{id}`. Revocation takes effect immediately.
+- Keep keys in a secret manager or environment variables. Never put them in source code, client-side code, mobile apps, or logs.
+
+## Sending domains
+
+- Each domain gets its own 2048-bit DKIM key pair, so receiving servers verify your signature, not ours.
+- Sending from a domain you haven't verified is refused with `403`. This protects your domain and the shared sending reputation.
+- Publish SPF and DMARC records as well as DKIM. The records and their purpose are listed in the [Quickstart](/quickstart#1-add-your-sending-domain).
+
+## Webhook deliveries
+
+- Every delivery includes an `X-Sendflit-Signature: sha256=<hex>` header, an HMAC-SHA256 of the raw request body keyed with your endpoint's secret.
+- Verify the signature with a constant-time comparison before you trust the payload. Each SDK provides a helper. See [Webhooks](/reference/webhooks).
+- Rotate an endpoint's secret if you suspect it has leaked, and update your endpoint at the same time.
+
+## Suppression and recipient protection
+
+- Suppressed addresses are refused at send time with `403`. Bounces and complaints add addresses to suppression automatically.
+- Honor unsubscribe requests. Don't send to suppressed addresses by re-importing them.
+
+## Your responsibilities
+
+- Only send email to people who have agreed to receive it, and comply with the laws that apply to you, such as anti-spam and data-protection rules.
+- Validate and escape any user-supplied content in your email templates.
+- Use HTTPS for every request to the API. The API doesn't accept plain HTTP.
+
+## Reporting a vulnerability
+
+Email security reports to security@sendflit.com. Don't open a public issue for a vulnerability. We'll acknowledge your report and keep you informed as we investigate.

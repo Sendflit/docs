@@ -1,0 +1,16 @@
+---
+title: "Changelog"
+description: "Release history for the SendFlit API and SDKs."
+---
+
+## v1.0.0: initial release
+
+**Released 2026-10-09**
+
+- **API v1** at `https://api.sendflit.com/v1`: sending (single and batch), scheduled sending and cancellation, email status, domains with DKIM, SPF and DMARC verification, API keys with `full`, `sending`, and `read` scopes, webhooks, and usage.
+- **Idempotency keys** on send and batch requests. Reusing a key with a different body returns `409`.
+- **Webhook signing** with HMAC-SHA256 in `X-Sendflit-Signature`.
+- **SDKs:** Node.js, Python, Go, Ruby, PHP, Java, .NET, and React email components. The Node.js and Python SDKs support idempotency keys.
+- **Health check** at `GET /health`.
+
+Package registry publication is in progress. Check the [SDK overview](/) for the current install status of each package.
