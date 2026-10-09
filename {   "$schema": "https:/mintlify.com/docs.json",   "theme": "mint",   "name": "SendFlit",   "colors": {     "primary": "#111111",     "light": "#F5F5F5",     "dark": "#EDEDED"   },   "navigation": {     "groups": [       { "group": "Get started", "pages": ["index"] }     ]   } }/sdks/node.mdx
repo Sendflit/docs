@@ -36,6 +36,8 @@ const { id } = await sendflit.send({
 
 ## Attachments
 
+Up to 10 attachments per message, 10 MB each.
+
 ```js
 await sendflit.send({
   from: "billing@yourdomain.com",
@@ -51,7 +53,7 @@ await sendflit.send({
 
 ## Batch send
 
-Send up to 100 emails in one request.
+Send up to 100 emails in one request. The response has a result for each message, so one bad recipient doesn't fail the batch.
 
 ```js
 const { results } = await sendflit.batch([
@@ -73,6 +75,8 @@ await sendflit.send({
 
 ## Scheduled send
 
+Pass an ISO 8601 timestamp. Cancel the send with the email's `id` before it goes out.
+
 ```js
 await sendflit.send({
   from: "you@yourdomain.com",
@@ -85,7 +89,7 @@ await sendflit.send({
 
 ## Safe retries
 
-Pass an idempotency key as the second argument. Retrying with the same key returns the original result instead of sending again, so it's safe to retry after a timeout.
+Pass an idempotency key as the second argument. Retrying with the same key and body returns the original result instead of sending again. Reusing the key with a different body returns `409`. See [Errors, retries and limits](/reference/errors#idempotency).
 
 ```js
 await sendflit.send({
@@ -119,6 +123,8 @@ app.post("/webhooks/sendflit",
     res.status(200).end();
   });
 ```
+
+See [Webhooks](/reference/webhooks) for the event list.
 
 ## Client options
 

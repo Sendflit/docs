@@ -9,7 +9,7 @@ description: "Send transactional email from Python 3.9+ with the sendflit packag
 pip install sendflit
 ```
 
-Installing from the repository before the package is published on PyPI (needs access to the private repo):
+Before the package is on PyPI, install from the repository (requires access to the private repo):
 
 ```bash
 pip install "git+ssh://git@github.com/mehedihassanz/sendflit.git#subdirectory=sdks/python"
@@ -37,6 +37,8 @@ print(res["id"], res["status"])
 
 ## Attachments
 
+Up to 10 attachments per message, 10 MB each.
+
 ```python
 sf.send(
     from_="billing@yourdomain.com",
@@ -49,7 +51,7 @@ sf.send(
 
 ## Batch send
 
-Send up to 100 emails in one request.
+Send up to 100 emails in one request. The response has a result for each message, so one bad recipient doesn't fail the batch.
 
 ```python
 res = sf.batch([
@@ -71,7 +73,7 @@ sf.send(
 
 ## Safe retries
 
-Pass an idempotency key. Retrying with the same key returns the original result instead of sending again.
+Pass an idempotency key. Retrying with the same key and body returns the original result instead of sending again. Reusing the key with a different body returns `409`. See [Errors, retries and limits](/reference/errors#idempotency).
 
 ```python
 sf.send(
@@ -105,6 +107,8 @@ def hook():
         ...
     return "", 200
 ```
+
+See [Webhooks](/reference/webhooks) for the event list.
 
 ## Client options
 

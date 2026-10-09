@@ -33,6 +33,8 @@ puts res["id"], res["status"]
 
 ## Attachments and batch send
 
+Up to 10 attachments per message, 10 MB each. Up to 100 messages per batch.
+
 ```ruby
 sf.send(from: "billing@yourdomain.com", to: "u@example.com", subject: "Receipt",
         attachments: [{filename: "receipt.pdf", content: pdf_bytes}])
@@ -46,6 +48,8 @@ sf.batch([{from: "you@yourdomain.com", to: "a@example.com", subject: "Hi", html:
 SendFlit.verify_webhook_signature(SECRET, raw_body, env["HTTP_X_SENDFLIT_SIGNATURE"])
 ```
 
+See [Webhooks](/reference/webhooks) for the event list.
+
 ## Errors
 
-Failed requests raise `SendFlit::Error`, with `.status` and `.body` attributes. Retries cover 429 and 5xx responses, and `Retry-After` is honored.
+Failed requests raise `SendFlit::Error`, with `.status` and `.body` attributes. Retries cover 429 and 5xx responses, and `Retry-After` is honored. See [Errors, retries and limits](/reference/errors).

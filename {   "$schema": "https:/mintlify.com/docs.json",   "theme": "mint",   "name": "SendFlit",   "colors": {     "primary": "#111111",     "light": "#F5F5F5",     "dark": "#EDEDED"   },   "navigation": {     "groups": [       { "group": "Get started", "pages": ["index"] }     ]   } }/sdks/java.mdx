@@ -38,6 +38,8 @@ System.out.println(res.id + " " + res.status);
 
 ## Attachments and batch send
 
+Up to 10 attachments per message, 10 MB each. Up to 100 messages per batch.
+
 ```java
 SendFlit.Email.builder()
     .from("billing@yourdomain.com").to("u@example.com").subject("Receipt")
@@ -53,6 +55,8 @@ sf.batch(List.of(emailA, emailB));
 boolean ok = SendFlit.verifyWebhookSignature(secret, rawBytes, signatureHeader);
 ```
 
+See [Webhooks](/reference/webhooks) for the event list.
+
 ## Errors
 
-Failed requests throw `SendFlit.SendFlitException`, with `.status` and `.body` fields. Retries cover 429 and 5xx responses, and `Retry-After` is honored.
+Failed requests throw `SendFlit.SendFlitException`, with `.status` and `.body` fields. Retries cover 429 and 5xx responses, and `Retry-After` is honored. See [Errors, retries and limits](/reference/errors).

@@ -3,50 +3,42 @@ title: "SDKs"
 description: "Official SendFlit SDKs for sending transactional email from your application or AI agent."
 ---
 
-Every SendFlit SDK wraps the same REST API (`https://api.sendflit.com/v1`) and shares the same behavior:
+Every SendFlit SDK wraps the same REST API (`https://api.sendflit.com/v1`) and behaves the same way:
 
 - **Zero dependencies.** Each SDK uses only its language's standard library or runtime HTTP client.
-- **Retries.** 429 and 5xx responses are retried with backoff, and `Retry-After` is honored.
-- **Idempotency.** The Node.js and Python SDKs accept an idempotency key on send and batch calls, so a retry never sends a duplicate. The other SDKs don't expose this yet.
-- **Webhook verification.** Each SDK checks the HMAC-SHA256 signature in the `X-Sendflit-Signature` header.
+- **Retries.** `429` and `5xx` responses are retried with backoff, and `Retry-After` is honored. See [Errors, retries and limits](/reference/errors).
+- **Idempotency.** The Node.js and Python SDKs accept an idempotency key on send and batch calls, so a retry never sends a duplicate. The other SDKs don't expose it yet.
+- **Webhook verification.** Each SDK checks the HMAC-SHA256 signature in the `X-Sendflit-Signature` header. See [Webhooks](/reference/webhooks).
+
+New here? Start with the [Quickstart](/quickstart) to verify a domain and send your first email.
 
 ## Choose your SDK
 
-| Language | Package | Install | Page |
-| --- | --- | --- | --- |
-| Node.js | `@sendflit/sdk` | `npm install @sendflit/sdk` | [Node.js](/sdks/node) |
-| Python | `sendflit` | `pip install sendflit` | [Python](/sdks/python) |
-| Go | `github.com/sendflit/sendflit-go` | `go get github.com/sendflit/sendflit-go` | [Go](/sdks/go) |
-| Ruby | `sendflit` | `gem install sendflit` | [Ruby](/sdks/ruby) |
-| PHP | `sendflit/sendflit` | `composer require sendflit/sendflit` | [PHP](/sdks/php) |
-| Java | `com.sendflit:sendflit` | Maven or Gradle (see page) | [Java](/sdks/java) |
-| .NET | `SendFlit` | `dotnet add package SendFlit` | [.NET](/sdks/dotnet) |
-| React | `@sendflit/email-components` | `npm install @sendflit/email-components` | [React email templates](/sdks/templates/react-email) |
+| Language | Package | Install | Status | Page |
+| --- | --- | --- | --- | --- |
+| Node.js | `@sendflit/sdk` | `npm install @sendflit/sdk` | Pending registry publish | [Node.js](/sdks/node) |
+| Python | `sendflit` | `pip install sendflit` | Pending registry publish | [Python](/sdks/python) |
+| Go | `github.com/Sendflit/sendflit-go` | `go get github.com/Sendflit/sendflit-go` | Pending public repo | [Go](/sdks/go) |
+| Ruby | `sendflit` | `gem install sendflit` | Pending registry publish | [Ruby](/sdks/ruby) |
+| PHP | `sendflit/sendflit` | `composer require sendflit/sendflit` | Pending Packagist submission | [PHP](/sdks/php) |
+| Java | `com.sendflit:sendflit` | Maven or Gradle (see page) | Pending Maven Central | [Java](/sdks/java) |
+| .NET | `SendFlit` | `dotnet add package SendFlit` | Pending NuGet publish | [.NET](/sdks/dotnet) |
+| React | `@sendflit/email-components` | `npm install @sendflit/email-components` | Pending registry publish | [React email templates](/sdks/templates/react-email) |
 
 <Warning>
-  The package names above are the targets. Until each package is published to its registry, the install command fails with a "not found" error. Python can be installed from the repository today with access to the private repo:
-
-  ```bash
-  pip install "git+ssh://git@github.com/mehedihassanz/sendflit.git#subdirectory=sdks/python"
-  ```
+  Until a package is published, its install command fails with "not found". Use the status column to check. Each SDK's source lives in its own repo under the `Sendflit` GitHub organization.
 </Warning>
 
 ## Authenticate
 
-Create an API key in the dashboard and pass it to the SDK. Keys look like `re_...`.
+Create an API key in the dashboard and pass it to the SDK. Keys look like `re_...`. Each key has a scope: `full`, `sending`, or `read`. See the [Quickstart](/quickstart#2-create-an-api-key) for the table.
 
 <Warning>
   Keep API keys on the server. Don't ship them in browser or mobile code.
 </Warning>
 
-Each key has a scope:
+## Where to go next
 
-| Scope | Can do |
-| --- | --- |
-| `full` | Everything, including key and domain management. |
-| `sending` | Send email and read its delivery status. |
-| `read` | Read-only. Cannot send. |
-
-## Verify webhook signatures
-
-SendFlit signs each webhook request with HMAC-SHA256 and sends the signature in the `X-Sendflit-Signature` header. Verify it against the raw request body before you parse the event. Every SDK exposes a verification helper. The language pages show the exact name.
+- [Quickstart](/quickstart): verify your domain and send your first email.
+- [Errors, retries and limits](/reference/errors): status codes, idempotency and quotas.
+- [Webhooks](/reference/webhooks): delivery events and signature verification.
