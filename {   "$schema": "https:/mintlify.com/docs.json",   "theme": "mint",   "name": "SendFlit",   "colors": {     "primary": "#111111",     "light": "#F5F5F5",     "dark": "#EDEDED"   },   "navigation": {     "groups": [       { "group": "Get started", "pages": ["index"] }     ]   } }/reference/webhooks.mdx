@@ -1,0 +1,51 @@
+---
+title: "Webhooks"
+description: "Receive delivery events from SendFlit and verify each request's signature."
+---
+
+Webhooks let your server receive email events as they happen, instead of polling `GET /v1/emails/<id>`.
+
+## Set up an endpoint
+
+Add an endpoint in the dashboard and choose the events you want. When you add the endpoint, choose the Resend-compatible payload format. Each endpoint has its own signing secret, shown once when you create it.
+
+## Events
+
+| Event | Fires when |
+|---|---|
+| `email.sent` | The sending infrastructure accepted the email. |
+| `email.delivered` | The recipient's server accepted it. |
+| `email.opened` | The tracking pixel loaded. |
+| `email.clicked` | A tracked link was followed. |
+| `email.bounced` | Delivery failed permanently. Suppress the address. |
+| `email.complained` | The recipient marked it as spam. Suppress the address. |
+| `email.unsubscribed` | The recipient used the unsubscribe link. |
+| `email.failed` | We couldn't hand the email off. |
+
+## Verify the signature
+
+Every request includes an `X-Sendflit-Signature` header in the form `sha256=<hex>`. The value is an HMAC-SHA256 of the raw request body, keyed with your endpoint's secret.
+
+Verify it before you trust the payload:
+
+1. Read the raw request body as bytes. Don't parse it first, because re-serializing JSON changes the bytes and the signature no longer matches.
+2. Compute the HMAC-SHA256 of those bytes with your secret.
+3. Compare the result with the header using a constant-time comparison.
+
+Each SDK has a helper for this. See the [Node.js](/sdks/node#verify-webhooks), [Python](/sdks/python#verify-webhooks), [Go](/sdks/go#verify-webhooks), [Ruby](/sdks/ruby#verify-webhooks), [PHP](/sdks/php#verify-webhooks), [Java](/sdks/java#verify-webhooks), or [.NET](/sdks/dotnet#verify-webhooks) page.
+
+```python
+import hmac, hashlib
+
+def is_valid(secret: str, raw_body: bytes, header: str) -> bool:
+    expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, header)
+```
+
+## Respond quickly
+
+Return a `2xx` status as soon as you've verified and stored the event. Do slow work, such as updating your CRM or sending an alert, after you've responded, or from a queue. Return `401` for a bad signature.
+
+## Handle duplicates
+
+Deliveries can arrive more than once, and in any order. Key your processing on the email `id` and event type, so processing the same event twice does nothing the second time.

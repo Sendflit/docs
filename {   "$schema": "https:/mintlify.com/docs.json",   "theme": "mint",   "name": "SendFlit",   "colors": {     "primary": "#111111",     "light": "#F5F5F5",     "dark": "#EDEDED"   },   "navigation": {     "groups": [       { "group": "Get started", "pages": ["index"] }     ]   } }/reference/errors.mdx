@@ -1,0 +1,63 @@
+---
+title: "Errors, retries and limits"
+description: "HTTP status codes, safe retries with idempotency keys, batch behavior and sending limits."
+---
+
+Every error response is JSON with a `detail` field that explains what went wrong. The SDKs throw an error that carries the status code and body, so you can handle it in one place.
+
+## Status codes
+
+| Status | Meaning | What to do |
+|---|---|---|
+| `400` | Malformed request, or an unsigned tracking link. | Fix the request. Don't retry unchanged. |
+| `401` | Missing, invalid or revoked credentials. | Check the key. Don't retry unchanged. |
+| `403` | Suppressed recipient, unverified domain, or the key's scope doesn't allow the action. | Verify the domain, remove the suppression, or use a key with the right scope. |
+| `404` | Not found, or the resource belongs to another account. | Check the ID. |
+| `409` | Conflict. The resource already exists, or an idempotency key was reused with a different body. | See [Idempotency](#idempotency). |
+| `422` | Validation failed. | Read `detail`, then fix the field it names. |
+| `429` | Rate limit, daily limit or monthly quota reached. | Retry after the `Retry-After` delay. See [Limits](#limits). |
+| `5xx` | Something went wrong on our side. | Retry with the same idempotency key. |
+
+## Retries
+
+The SDKs retry `429` and `5xx` responses automatically with exponential backoff. They honor the `Retry-After` header when it's present. The default is 2 retries; change it with `maxRetries` (Node.js) or `max_retries` (Python). If every attempt fails, the SDK throws the last error.
+
+Retrying a `4xx` other than `429` won't help, because the request itself is the problem.
+
+## Idempotency
+
+Send an `Idempotency-Key` header with `POST /v1/email` or `POST /v1/emails/batch` so a retried request never sends twice:
+
+- **Same key, same body:** SendFlit returns the original result and doesn't send again. This is the safe retry case, for example after a network timeout.
+- **Same key, different body:** the request is rejected with `409`. This means your client has a bug. Generate a new key for a new email.
+
+The SDKs take the key as an argument. The Node.js and Python SDKs support it today, and the other SDKs don't expose it yet.
+
+```bash
+curl -X POST https://api.sendflit.com/v1/email \
+  -H "Authorization: Bearer $SENDFLIT_KEY" \
+  -H "Idempotency-Key: order-4471" \
+  -H "Content-Type: application/json" \
+  -d '{"from": "billing@yourdomain.com", "to": "user@example.com", "subject": "Order confirmed", "html": "<p>Thanks!</p>"}'
+```
+
+Use a key that identifies the business event, such as `order-<id>` or `digest-<date>`, so the same event always maps to the same key.
+
+## Batch sends
+
+`POST /v1/emails/batch` accepts up to 100 messages in one call. The response has a result for each message, so one bad recipient doesn't fail the whole batch. Check each result.
+
+## Limits
+
+| Limit | Value |
+|---|---|
+| Recipients per message | One address in `to`. Use `cc` and `bcc`, or send one message per recipient. |
+| Messages per batch | 100 |
+| Attachments per message | 10 |
+| Attachment size | 10 MB each, base64-encoded in the request |
+| Request rate | Per API key, per second. Depends on your plan. |
+| Daily and monthly quotas | Per account. Exceeding them returns `429`. |
+
+A broadcast is charged for its full audience before it starts, so it either fits within your quota or is refused before any email goes out.
+
+`scheduled_at` takes an ISO 8601 timestamp such as `2026-09-01T09:00:00Z`. Relative phrases such as "in one hour" aren't supported. Cancel a scheduled send with `DELETE /v1/emails/<id>`.

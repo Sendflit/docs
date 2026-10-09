@@ -29,6 +29,8 @@ echo $res['id'], $res['status'];
 
 ## Attachments and batch send
 
+Up to 10 attachments per message, 10 MB each. Up to 100 messages per batch.
+
 ```php
 $sf->send([
     'from' => 'billing@yourdomain.com', 'to' => 'u@example.com', 'subject' => 'Receipt',
@@ -44,6 +46,8 @@ $sf->batch([ ['from' => 'you@yourdomain.com', 'to' => 'a@example.com', 'subject'
 $ok = SendFlit::verifyWebhookSignature($secret, $rawBody, $_SERVER['HTTP_X_SENDFLIT_SIGNATURE'] ?? '');
 ```
 
+See [Webhooks](/reference/webhooks) for the event list.
+
 ## Errors
 
-Failed requests throw `SendFlitException`. Use `getCode()` for the HTTP status and `->body` for the response body. Retries cover 429 and 5xx responses, and `Retry-After` is honored.
+Failed requests throw `SendFlitException`. Use `getCode()` for the HTTP status and `->body` for the response body. Retries cover 429 and 5xx responses, and `Retry-After` is honored. See [Errors, retries and limits](/reference/errors).

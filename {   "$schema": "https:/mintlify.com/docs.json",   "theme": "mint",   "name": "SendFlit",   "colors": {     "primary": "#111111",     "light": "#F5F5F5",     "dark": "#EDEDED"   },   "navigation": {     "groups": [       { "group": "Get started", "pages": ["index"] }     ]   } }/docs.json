@@ -87,6 +87,31 @@
         "pages": [
           "sdks/templates/react-email"
         ]
+      },
+      {
+        "group": "SDKs",
+        "pages": [
+          "sdks/node",
+          "sdks/python",
+          "sdks/go",
+          "sdks/ruby",
+          "sdks/php",
+          "sdks/java",
+          "sdks/dotnet"
+        ]
+      },
+      {
+        "group": "Email templates",
+        "pages": [
+          "sdks/templates/react-email"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/errors",
+          "reference/webhooks"
+        ]
       }
     ]
   }

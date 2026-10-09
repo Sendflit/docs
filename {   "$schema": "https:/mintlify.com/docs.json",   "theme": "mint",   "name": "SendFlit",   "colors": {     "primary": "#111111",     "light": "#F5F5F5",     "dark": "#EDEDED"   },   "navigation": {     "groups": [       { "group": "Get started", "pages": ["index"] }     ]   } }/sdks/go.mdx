@@ -44,13 +44,17 @@ Every call takes a `context.Context`, so you can set deadlines and cancel reques
 
 ## Attachments
 
+Up to 10 attachments per message, 10 MB each.
+
 ```go
 em := sendflit.Email{From: "billing@yourdomain.com", To: "u@example.com", Subject: "Receipt"}
 em.AttachBytes("receipt.pdf", pdfBytes, "application/pdf")
 em.Attach("note.txt", "plain text", "")
 ```
 
-## Batch send, domains
+## Batch send and domains
+
+Up to 100 messages per batch. Each message gets its own result.
 
 ```go
 sfl.Batch(ctx, []sendflit.Email{ /* up to 100 */ })
@@ -69,6 +73,8 @@ if !ok {
 }
 ```
 
+See [Webhooks](/reference/webhooks) for the event list.
+
 ## Errors
 
-Failed requests return an `*sendflit.APIError` with a `.Status` field. Retries cover 429 and 5xx responses, and `Retry-After` is honored.
+Failed requests return an `*sendflit.APIError` with a `.Status` field. Retries cover 429 and 5xx responses, and `Retry-After` is honored. See [Errors, retries and limits](/reference/errors).

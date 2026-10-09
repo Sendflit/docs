@@ -1,0 +1,77 @@
+---
+title: "Quickstart"
+description: "Verify a domain, create an API key, and send your first email with the API or any SDK."
+---
+
+This guide takes you from a new account to your first delivered email. It takes about 15 minutes, most of which is DNS propagation.
+
+## 1. Add your sending domain
+
+Sending from a domain you haven't verified returns `403`. Verification also protects your shared sending reputation, so it's required.
+
+1. Open the dashboard and add your domain, for example `yourdomain.com`.
+2. SendFlit shows three DNS records. Publish all of them at your DNS provider:
+
+| Type | Host | Purpose |
+| --- | --- | --- |
+| `TXT` | `sendflit._domainkey.yourdomain.com` | DKIM. Signs your outgoing mail with a 2048-bit key unique to your domain. |
+| `TXT` | `yourdomain.com` | SPF. Authorizes SendFlit to send for your domain. |
+| `TXT` | `_dmarc.yourdomain.com` | DMARC. Sets your policy for failed checks and sends aggregate reports. |
+
+3. Verify the domain once the records are live:
+
+```bash
+curl -X POST https://api.sendflit.com/v1/domains/<domain_id>/verify \
+  -H "Authorization: Bearer $SENDFLIT_KEY"
+```
+
+If your DNS is in Amazon Route 53, you can connect AWS credentials once and SendFlit will publish the records for you.
+
+## 2. Create an API key
+
+Create a key in the dashboard. Keys look like `re_...` and have one of three scopes:
+
+| Scope | Can do |
+| --- | --- |
+| `full` | Everything, including key and domain management. |
+| `sending` | Send email and read its delivery status. |
+| `read` | Read-only. Cannot send. |
+
+Give each service its own key with the smallest scope it needs. A key is shown once at creation and stored only as a SHA-256 hash, so save it when you create it. To rotate a key, create a replacement, deploy it, then revoke the old key with `DELETE /v1/keys/<id>`. Revocation is immediate.
+
+Store the key in an environment variable or secret manager, never in source code or client-side code.
+
+## 3. Send your first email
+
+Using the API directly:
+
+```bash
+curl -X POST https://api.sendflit.com/v1/email \
+  -H "Authorization: Bearer $SENDFLIT_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from": "hello@yourdomain.com",
+    "to": "you@example.com",
+    "subject": "Hello from SendFlit",
+    "html": "<p>It works.</p>"
+  }'
+```
+
+A successful response includes the email `id`. Save it so you can check delivery.
+
+Or use an SDK: [Node.js](/sdks/node), [Python](/sdks/python), [Go](/sdks/go), [Ruby](/sdks/ruby), [PHP](/sdks/php), [Java](/sdks/java), or [.NET](/sdks/dotnet).
+
+## 4. Check delivery
+
+```bash
+curl https://api.sendflit.com/v1/emails/<email_id> \
+  -H "Authorization: Bearer $SENDFLIT_KEY"
+```
+
+An email moves through these events: `sent` (accepted by our sending infrastructure), `delivered` (accepted by the recipient's server), and possibly `opened`, `clicked`, `bounced`, `complained`, `unsubscribed`, or `failed`. To receive these as they happen, set up a [webhook](/reference/webhooks).
+
+## Next steps
+
+- [Errors, retries and limits](/reference/errors): handle failures and safe retries.
+- [Webhooks](/reference/webhooks): receive delivery events.
+- Pick an [SDK](/) for your language.
