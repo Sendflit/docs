@@ -7,14 +7,9 @@ description: "Build email-safe templates with React components and render them t
 
 ## Install
 
-<CodeGroup>
-```bash npm
+```bash
 npm install @sendflit/email-components react react-dom
 ```
-```bash pnpm
-pnpm add @sendflit/email-components react react-dom
-```
-</CodeGroup>
 
 Requires React 18 or later and Node.js 18 or later.
 
@@ -47,7 +42,7 @@ const html = render(<WelcomeEmail name="Ada" actionUrl="https://app.sendflit.com
 
 ## Send the rendered HTML
 
-Pass the output of `render()` to the Node.js SDK:
+Pass the output of `render()` to the [Node.js SDK](/sdks/node):
 
 ```ts
 import SendFlit from "@sendflit/sdk";
@@ -61,8 +56,6 @@ await sendflit.send({
   html,
 });
 ```
-
-You can also store the rendered HTML as a template with `POST /v1/templates`.
 
 ## Components
 
@@ -92,53 +85,6 @@ Every component accepts a `style` prop (a `React.CSSProperties` object) to overr
 `render()` runs on the server only, because it imports `react-dom/server`. Call it from a route handler, a server action, or other server code. Don't call it from a client component.
 </Warning>
 
-## Next.js example
-
-```tsx
-// app/api/welcome/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { render } from "@sendflit/email-components";
-import SendFlit from "@sendflit/sdk";
-import { WelcomeEmail } from "@/app/emails/welcome";
-
-const sendflit = new SendFlit({ apiKey: process.env.SENDFLIT_API_KEY! });
-
-export async function POST(req: NextRequest) {
-  const { email, name } = await req.json();
-  const html = render(<WelcomeEmail name={name} actionUrl="https://app.example.com/start" />);
-
-  await sendflit.send(
-    { from: "welcome@yourdomain.com", to: email, subject: "Welcome aboard", html },
-    `welcome-${email}`, // idempotency key: a retry won't send a second copy
-  );
-
-  return NextResponse.json({ ok: true });
-}
-```
-
-## Preview a template
-
-The package doesn't include a preview server. To preview, render the template to a file and open it in a browser:
-
-```ts
-// scripts/preview-email.tsx
-import { writeFileSync } from "node:fs";
-import { render } from "@sendflit/email-components";
-import { WelcomeEmail } from "../app/emails/welcome";
-
-writeFileSync("preview.html", render(<WelcomeEmail name="Ada" actionUrl="https://example.com" />));
-```
-
-```bash
-npx tsx scripts/preview-email.tsx && open preview.html
-```
-
 ## Why the components look like this
 
-Email clients render HTML much more narrowly than browsers do:
-
-- **Outlook (desktop)** uses Word's HTML engine. It ignores `display: flex` and `grid`, and it ignores background colors on `<a>` tags.
-- **Gmail** strips `<style>` blocks in some contexts and rewrites class names, so styles have to be inline.
-- **Tables** with zeroed padding and spacing are the one layout every client handles consistently. That's why every component is built from them.
-
-If you only use the components and don't override their `style` props with layout CSS, the output follows these constraints.
+Email clients render HTML much more narrowly than browsers do. Outlook (desktop) ignores flexbox and grid, Gmail strips some `<style>` blocks, and tables with zeroed padding are the one layout every client handles consistently. That's why every component is built from tables with inline styles.

@@ -112,6 +112,31 @@
           "reference/errors",
           "reference/webhooks"
         ]
+      },
+      {
+        "group": "SDKs",
+        "pages": [
+          "sdks/go",
+          "sdks/node",
+          "sdks/python",
+          "sdks/ruby",
+          "sdks/php",
+          "sdks/java",
+          "sdks/dotnet"
+        ]
+      },
+      {
+        "group": "Email templates",
+        "pages": [
+          "sdks/templates/react-email"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/errors",
+          "reference/webhooks"
+        ]
       }
     ]
   }

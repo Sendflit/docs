@@ -53,7 +53,7 @@ await sendflit.send({
 
 ## Batch send
 
-Send up to 100 emails in one request. The response has a result for each message, so one bad recipient doesn't fail the batch.
+Send up to 100 emails in one request. Each message gets its own result, so one bad recipient doesn't fail the batch.
 
 ```js
 const { results } = await sendflit.batch([
@@ -75,7 +75,7 @@ await sendflit.send({
 
 ## Scheduled send
 
-Pass an ISO 8601 timestamp. Cancel the send with the email's `id` before it goes out.
+Pass an ISO 8601 timestamp.
 
 ```js
 await sendflit.send({
@@ -98,13 +98,11 @@ await sendflit.send({
   subject: "Order confirmed",
   html: "<p>...</p>",
 }, `order-${orderId}`);
-
-await sendflit.batch(emails, `digest-${new Date().toISOString().slice(0, 10)}`);
 ```
 
 ## Verify webhooks
 
-Use the raw request body. Parsing it first changes the bytes and breaks the signature check.
+Use the raw request body. Parsing it first changes the bytes and breaks the signature check. See [Webhooks](/reference/webhooks) for the event list.
 
 ```js
 import express from "express";
@@ -124,13 +122,7 @@ app.post("/webhooks/sendflit",
   });
 ```
 
-See [Webhooks](/reference/webhooks) for the event list.
-
 ## Client options
-
-```js
-new SendFlit({ apiKey, baseUrl, timeout, maxRetries });
-```
 
 | Option | Default | Notes |
 |---|---|---|
@@ -155,7 +147,7 @@ new SendFlit({ apiKey, baseUrl, timeout, maxRetries });
 
 ## Errors
 
-Failed requests throw a `SendFlitError` with `.status` and `.body`. If retries run out, the final error is thrown.
+Failed requests throw a `SendFlitError` with `.status` and `.body`. See [Errors, retries and limits](/reference/errors).
 
 ```js
 import { SendFlitError } from "@sendflit/sdk";

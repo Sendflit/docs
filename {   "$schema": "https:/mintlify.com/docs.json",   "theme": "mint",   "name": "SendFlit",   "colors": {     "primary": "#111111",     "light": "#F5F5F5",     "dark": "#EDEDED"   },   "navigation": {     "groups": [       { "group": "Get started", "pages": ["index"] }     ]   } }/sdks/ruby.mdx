@@ -44,12 +44,12 @@ sf.batch([{from: "you@yourdomain.com", to: "a@example.com", subject: "Hi", html:
 
 ## Verify webhooks
 
+See [Webhooks](/reference/webhooks) for the event list.
+
 ```ruby
 SendFlit.verify_webhook_signature(SECRET, raw_body, env["HTTP_X_SENDFLIT_SIGNATURE"])
 ```
 
-See [Webhooks](/reference/webhooks) for the event list.
-
 ## Errors
 
-Failed requests raise `SendFlit::Error`, with `.status` and `.body` attributes. Retries cover 429 and 5xx responses, and `Retry-After` is honored. See [Errors, retries and limits](/reference/errors).
+Failed requests raise `SendFlit::Error`, with `.status` and `.body` attributes. See [Errors, retries and limits](/reference/errors).

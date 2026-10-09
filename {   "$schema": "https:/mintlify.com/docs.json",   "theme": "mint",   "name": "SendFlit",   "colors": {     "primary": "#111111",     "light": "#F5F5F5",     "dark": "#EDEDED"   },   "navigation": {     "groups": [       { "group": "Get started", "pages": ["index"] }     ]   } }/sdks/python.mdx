@@ -51,7 +51,7 @@ sf.send(
 
 ## Batch send
 
-Send up to 100 emails in one request. The response has a result for each message, so one bad recipient doesn't fail the batch.
+Send up to 100 emails in one request. Each message gets its own result.
 
 ```python
 res = sf.batch([
@@ -73,7 +73,7 @@ sf.send(
 
 ## Safe retries
 
-Pass an idempotency key. Retrying with the same key and body returns the original result instead of sending again. Reusing the key with a different body returns `409`. See [Errors, retries and limits](/reference/errors#idempotency).
+Pass an idempotency key. Retrying with the same key and body returns the original result. Reusing the key with a different body returns `409`. See [Errors, retries and limits](/reference/errors#idempotency).
 
 ```python
 sf.send(
@@ -83,13 +83,11 @@ sf.send(
     html="<p>...</p>",
     idempotency_key=f"order-{order_id}",
 )
-
-sf.batch(emails, idempotency_key=f"digest-{today}")
 ```
 
 ## Verify webhooks
 
-Pass the raw request body, not a parsed copy.
+Pass the raw request body, not a parsed copy. See [Webhooks](/reference/webhooks) for the event list.
 
 ```python
 import json
@@ -108,15 +106,11 @@ def hook():
     return "", 200
 ```
 
-See [Webhooks](/reference/webhooks) for the event list.
-
 ## Client options
 
 ```python
 SendFlit(api_key, base_url="https://api.sendflit.com", timeout=15, max_retries=2)
 ```
-
-Retries 429 and 5xx responses with backoff and honors `Retry-After`.
 
 ## Methods
 
@@ -134,13 +128,4 @@ Retries 429 and 5xx responses with backoff and honors `Retry-After`.
 
 ## Errors
 
-Failed requests raise `SendFlitError`, with `.status` and `.body` attributes.
-
-```python
-from sendflit import SendFlit, SendFlitError
-
-try:
-    sf.send(...)
-except SendFlitError as e:
-    print(e.status, e.body)
-```
+Failed requests raise `SendFlitError`, with `.status` and `.body`. See [Errors, retries and limits](/reference/errors).
