@@ -22,11 +22,10 @@ This page describes the security controls in SendFlit and the practices we recom
 
 - Every delivery includes an `X-Sendflit-Signature: sha256=<hex>` header, an HMAC-SHA256 of the raw request body keyed with your endpoint's secret.
 - Verify the signature with a constant-time comparison before you trust the payload. Each SDK provides a helper. See [Webhooks](/reference/webhooks).
-- Rotate an endpoint's secret if you suspect it has leaked, and update your endpoint at the same time.
 
 ## Suppression and recipient protection
 
-- Suppressed addresses are refused at send time with `403`. Bounces and complaints add addresses to suppression automatically.
+- Suppressed addresses are refused at send time with `403`. Permanent bounces and spam complaints add the address to suppression automatically. Transient bounces, such as a full mailbox, don't.
 - Honor unsubscribe requests. Don't send to suppressed addresses by re-importing them.
 
 ## Your responsibilities
@@ -37,4 +36,4 @@ This page describes the security controls in SendFlit and the practices we recom
 
 ## Reporting a vulnerability
 
-Email security reports to security@sendflit.com. Don't open a public issue for a vulnerability. We'll acknowledge your report and keep you informed as we investigate.
+Email hello@sendflit.com with **SECURITY** in the subject line. Don't open a public issue for a vulnerability.
