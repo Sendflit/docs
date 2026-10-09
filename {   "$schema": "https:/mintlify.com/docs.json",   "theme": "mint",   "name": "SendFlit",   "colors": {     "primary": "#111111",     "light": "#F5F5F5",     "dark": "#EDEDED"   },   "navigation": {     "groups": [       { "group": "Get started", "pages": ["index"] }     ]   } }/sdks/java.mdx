@@ -51,12 +51,12 @@ sf.batch(List.of(emailA, emailB));
 
 ## Verify webhooks
 
+See [Webhooks](/reference/webhooks) for the event list.
+
 ```java
 boolean ok = SendFlit.verifyWebhookSignature(secret, rawBytes, signatureHeader);
 ```
 
-See [Webhooks](/reference/webhooks) for the event list.
-
 ## Errors
 
-Failed requests throw `SendFlit.SendFlitException`, with `.status` and `.body` fields. Retries cover 429 and 5xx responses, and `Retry-After` is honored. See [Errors, retries and limits](/reference/errors).
+Failed requests throw `SendFlit.SendFlitException`, with `.status` and `.body` fields. See [Errors, retries and limits](/reference/errors).

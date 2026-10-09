@@ -116,7 +116,12 @@
       {
         "group": "SDKs",
         "pages": [
-          "sdks/go"
+          "sdks/go",
+          "sdks/node",
+          "sdks/python",
+          "sdks/ruby",
+          "sdks/php",
+          "sdks/java"
         ]
       },
       {
