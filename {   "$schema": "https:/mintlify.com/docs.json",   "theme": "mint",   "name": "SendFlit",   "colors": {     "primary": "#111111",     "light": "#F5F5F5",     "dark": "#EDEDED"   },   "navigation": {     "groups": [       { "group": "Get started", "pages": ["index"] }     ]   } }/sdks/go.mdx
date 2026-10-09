@@ -1,0 +1,74 @@
+---
+title: "Go"
+description: "Send transactional email from Go with the sendflit-go module. Standard library only."
+---
+
+## Install
+
+```bash
+go get github.com/sendflit/sendflit-go
+```
+
+Requires Go 1.21 or later.
+
+## Send an email
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/sendflit/sendflit-go"
+)
+
+func main() {
+	sfl := sendflit.New("re_...")
+
+	res, err := sfl.Send(context.Background(), sendflit.Email{
+		From:    "you@yourdomain.com",
+		To:      "user@example.com",
+		Subject: "Confirm your email",
+		HTML:    "<p>Click <a href='...'>here</a>.</p>",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(res.ID, res.Status)
+}
+```
+
+Every call takes a `context.Context`, so you can set deadlines and cancel requests.
+
+## Attachments
+
+```go
+em := sendflit.Email{From: "billing@yourdomain.com", To: "u@example.com", Subject: "Receipt"}
+em.AttachBytes("receipt.pdf", pdfBytes, "application/pdf")
+em.Attach("note.txt", "plain text", "")
+```
+
+## Batch send, domains
+
+```go
+sfl.Batch(ctx, []sendflit.Email{ /* up to 100 */ })
+sfl.AddDomain(ctx, "acme.com")
+```
+
+## Verify webhooks
+
+Pass the raw request body and the signature header.
+
+```go
+ok := sendflit.VerifyWebhookSignature("whsec_...", rawBody, r.Header.Get("X-Sendflit-Signature"))
+if !ok {
+	http.Error(w, "invalid signature", http.StatusUnauthorized)
+	return
+}
+```
+
+## Errors
+
+Failed requests return an `*sendflit.APIError` with a `.Status` field. Retries cover 429 and 5xx responses, and `Retry-After` is honored.

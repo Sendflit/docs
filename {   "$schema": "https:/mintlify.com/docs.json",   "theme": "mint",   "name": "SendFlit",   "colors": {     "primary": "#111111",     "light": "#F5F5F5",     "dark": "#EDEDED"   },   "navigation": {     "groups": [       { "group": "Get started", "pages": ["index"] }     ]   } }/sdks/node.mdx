@@ -1,0 +1,165 @@
+---
+title: "Node.js"
+description: "Send transactional email from Node.js 18+ with the @sendflit/sdk package."
+---
+
+## Install
+
+<CodeGroup>
+```bash npm
+npm install @sendflit/sdk
+```
+```bash pnpm
+pnpm add @sendflit/sdk
+```
+```bash yarn
+yarn add @sendflit/sdk
+```
+</CodeGroup>
+
+Requires Node.js 18 or later. The SDK uses the built-in `fetch`.
+
+## Send an email
+
+```js
+import SendFlit from "@sendflit/sdk";
+
+const sendflit = new SendFlit({ apiKey: process.env.SENDFLIT_API_KEY });
+
+const { id } = await sendflit.send({
+  from: "you@yourdomain.com",
+  to: "user@example.com",
+  subject: "Confirm your email",
+  html: "<p>Click <a href='...'>here</a> to confirm.</p>",
+});
+```
+
+## Attachments
+
+```js
+await sendflit.send({
+  from: "billing@yourdomain.com",
+  to: "user@example.com",
+  subject: "Your receipt",
+  html: "<p>Thanks for your purchase.</p>",
+  attachments: [
+    { filename: "receipt.pdf", content: pdfBuffer }, // Buffer or Uint8Array
+    { filename: "note.txt", content: "plain text is fine" }, // string
+  ],
+});
+```
+
+## Batch send
+
+Send up to 100 emails in one request.
+
+```js
+const { results } = await sendflit.batch([
+  { from: "you@yourdomain.com", to: "a@example.com", subject: "Hi A", html: "<p>A</p>" },
+  { from: "you@yourdomain.com", to: "b@example.com", subject: "Hi B", html: "<p>B</p>" },
+]);
+```
+
+## Templates
+
+```js
+await sendflit.send({
+  from: "you@yourdomain.com",
+  to: "user@example.com",
+  templateId: "tmpl_...",
+  variables: { name: "Ada" },
+});
+```
+
+## Scheduled send
+
+```js
+await sendflit.send({
+  from: "you@yourdomain.com",
+  to: "user@example.com",
+  subject: "Weekly digest",
+  html: "<p>...</p>",
+  scheduledAt: new Date("2026-09-05T09:00:00Z").toISOString(),
+});
+```
+
+## Safe retries
+
+Pass an idempotency key as the second argument. Retrying with the same key returns the original result instead of sending again, so it's safe to retry after a timeout.
+
+```js
+await sendflit.send({
+  from: "you@yourdomain.com",
+  to: "user@example.com",
+  subject: "Order confirmed",
+  html: "<p>...</p>",
+}, `order-${orderId}`);
+
+await sendflit.batch(emails, `digest-${new Date().toISOString().slice(0, 10)}`);
+```
+
+## Verify webhooks
+
+Use the raw request body. Parsing it first changes the bytes and breaks the signature check.
+
+```js
+import express from "express";
+import { verifyWebhookSignature } from "@sendflit/sdk";
+
+app.post("/webhooks/sendflit",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    if (!verifyWebhookSignature(WEBHOOK_SECRET, req.body, req.headers["x-sendflit-signature"])) {
+      return res.status(401).end();
+    }
+    const event = JSON.parse(req.body);
+    if (event.type === "email.bounced") {
+      // suppress the address, alert, ...
+    }
+    res.status(200).end();
+  });
+```
+
+## Client options
+
+```js
+new SendFlit({ apiKey, baseUrl, timeout, maxRetries });
+```
+
+| Option | Default | Notes |
+|---|---|---|
+| `apiKey` | none | Required. Starts with `re_`. |
+| `baseUrl` | `https://api.sendflit.com` | Change only if you run against a different API host. |
+| `timeout` | `15000` | Per request, in milliseconds. |
+| `maxRetries` | `2` | Retries 429 and 5xx responses with backoff. Honors `Retry-After`. |
+
+## Methods
+
+| Method | Endpoint |
+|---|---|
+| `send(email, idempotencyKey?)` | `POST /v1/email` |
+| `batch(emails, idempotencyKey?)` | `POST /v1/emails/batch` |
+| `listEmails({ limit, offset, status })` | `GET /v1/emails` |
+| `getEmail(id)` / `cancelEmail(id)` | `GET` / `DELETE /v1/emails/{id}` |
+| `addDomain(name)` / `listDomains()` / `verifyDomain(id)` | `/v1/domains` |
+| `createTemplate(t)` / `listTemplates()` | `/v1/templates` |
+| `addContact(c)` / `listContacts(q)` | `/v1/contacts` |
+| `suppress({ email, reason })` | `POST /v1/suppressions` |
+| `usage()` / `health()` | `/v1/usage`, `/v1/health` |
+
+## Errors
+
+Failed requests throw a `SendFlitError` with `.status` and `.body`. If retries run out, the final error is thrown.
+
+```js
+import { SendFlitError } from "@sendflit/sdk";
+
+try {
+  await sendflit.send(email);
+} catch (err) {
+  if (err instanceof SendFlitError) {
+    console.error(err.status, err.body);
+  }
+  throw err;
+}
+```

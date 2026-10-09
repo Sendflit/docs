@@ -69,11 +69,21 @@
       },
       {
         "group": "SDKs",
-        "pages": []
+        "pages": [
+          "sdks/node",
+          "sdks/python",
+          "sdks/go",
+          "sdks/ruby",
+          "sdks/php",
+          "sdks/java",
+          "sdks/dotnet"
+        ]
       },
       {
         "group": "Email templates",
-        "pages": []
+        "pages": [
+          "sdks/templates/react-email"
+        ]
       }
     ]
   }
