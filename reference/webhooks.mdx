@@ -1,51 +1,110 @@
 ---
 title: "Webhooks"
-description: "Receive delivery events from SendFlit and verify each request's signature."
+description: "Receive delivery, bounce, complaint and engagement events from SendFlit, verify each request's signature, and handle retries safely."
 ---
 
-Webhooks let your server receive email events as they happen, instead of polling `GET /v1/emails/<id>`.
+Webhooks push email events to your server as they happen, so you don't have to poll `GET /v1/emails/{id}`.
 
-## Set up an endpoint
+## Create an endpoint
 
-Add an endpoint in the dashboard and choose the events you want. When you add the endpoint, choose the Resend-compatible payload format. Each endpoint has its own signing secret, shown once when you create it.
+Add an endpoint in the dashboard. Choose the events it receives and the payload format:
+
+- **SendFlit format** (default): the body is described below and is signed with `X-Sendflit-Signature`.
+- **Resend format:** the payload and Svix-style signature headers match Resend's, so existing Resend webhook code keeps working. See [Switching from Resend](/guides/switching-from-resend).
+
+Each endpoint has its own signing secret, shown once when you create it.
 
 ## Events
 
-| Event | Fires when |
-|---|---|
-| `email.sent` | The sending infrastructure accepted the email. |
-| `email.delivered` | The recipient's server accepted it. |
-| `email.opened` | The tracking pixel loaded. |
-| `email.clicked` | A tracked link was followed. |
-| `email.bounced` | Delivery failed permanently. Suppress the address. |
-| `email.complained` | The recipient marked it as spam. Suppress the address. |
-| `email.unsubscribed` | The recipient used the unsubscribe link. |
-| `email.failed` | We couldn't hand the email off. |
+| Event | Fires when | Suppresses the address |
+|---|---|---|
+| `email.sent` | Accepted by sending infrastructure. | No |
+| `email.delivered` | Accepted by the recipient's server. | No |
+| `email.delivery_delayed` | The recipient's server is delaying delivery. | No |
+| `email.bounced` | Delivery failed permanently. | Yes |
+| `email.complained` | The recipient marked the message as spam. | Yes |
+| `email.opened` | The tracking pixel loaded. | No |
+| `email.clicked` | A tracked link was followed. | No |
+| `email.unsubscribed` | The recipient used the unsubscribe link. | Yes |
+| `email.failed` | We couldn't hand the message off. | No |
+| `email.cancelled` | A scheduled email was cancelled. | No |
+| `inbound.email` | An email arrived at a receiving address. | No |
+| `reply.received` | A reply was received to a tracked conversation. | No |
+| `reply.lead` | A reply was classified as a lead. | No |
+
+Transient bounces, such as a full mailbox, don't suppress the address and don't produce `email.bounced`.
+
+## Payload
+
+Requests are `POST` with a JSON body:
+
+```json
+{
+  "type": "email.delivered",
+  "created_at": "2026-09-01T09:00:03.412+00:00",
+  "data": {
+    "id": "4f2c9a1e-7b3d-4e8a-9c21-0d5e6f7a8b9c",
+    "from": "hello@yourdomain.com",
+    "to": "user@example.com",
+    "subject": "Welcome",
+    "status": "delivered"
+  }
+}
+```
+
+`data` contains the email's `id`, `from`, `to`, `subject`, and `status`, plus event-specific fields such as the clicked URL for `email.clicked`. Read unknown fields without failing, because new fields can be added.
 
 ## Verify the signature
 
-Every request includes an `X-Sendflit-Signature` header in the form `sha256=<hex>`. The value is an HMAC-SHA256 of the raw request body, keyed with your endpoint's secret.
+Every SendFlit-format request includes:
 
-Verify it before you trust the payload:
-
-1. Read the raw request body as bytes. Don't parse it first, because re-serializing JSON changes the bytes and the signature no longer matches.
-2. Compute the HMAC-SHA256 of those bytes with your secret.
-3. Compare the result with the header using a constant-time comparison.
-
-Each SDK has a helper for this. See the [Node.js](/sdks/node#verify-webhooks), [Python](/sdks/python#verify-webhooks), [Go](/sdks/go#verify-webhooks), [Ruby](/sdks/ruby#verify-webhooks), [PHP](/sdks/php#verify-webhooks), [Java](/sdks/java#verify-webhooks), or [.NET](/sdks/dotnet#verify-webhooks) page.
-
-```python
-import hmac, hashlib
-
-def is_valid(secret: str, raw_body: bytes, header: str) -> bool:
-    expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, header)
+```
+X-Sendflit-Signature: sha256=<hex>
 ```
 
-## Respond quickly
+The value is an HMAC-SHA256 of the **raw request body**, keyed with the endpoint's secret.
 
-Return a `2xx` status as soon as you've verified and stored the event. Do slow work, such as updating your CRM or sending an alert, after you've responded, or from a queue. Return `401` for a bad signature.
+<Steps>
+  <Step title="Read the raw body">
+    Read the body as bytes before any JSON parsing. Parsing and re-serializing changes the bytes, and the signature no longer matches.
+  </Step>
+  <Step title="Compute the expected signature">
+    Compute `"sha256=" + hex(HMAC_SHA256(secret, raw_body))`.
+  </Step>
+  <Step title="Compare in constant time">
+    Use a constant-time comparison. Reject the request with `401` if they differ.
+  </Step>
+</Steps>
 
-## Handle duplicates
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import hmac, hashlib
 
-Deliveries can arrive more than once, and in any order. Key your processing on the email `id` and event type, so processing the same event twice does nothing the second time.
+    def is_valid(secret: str, raw_body: bytes, header: str) -> bool:
+        expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(expected, header)
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ```js
+    import { verifyWebhookSignature } from "@sendflit/sdk";
+
+    const ok = verifyWebhookSignature(WEBHOOK_SECRET, rawBody, req.headers["x-sendflit-signature"]);
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    ok := sendflit.VerifyWebhookSignature(secret, rawBody, r.Header.Get("X-Sendflit-Signature"))
+    ```
+  </Tab>
+</Tabs>
+
+Each SDK has a helper. See the [SDK pages](/sdks/node).
+
+## Respond and process
+
+- Return a `2xx` status once you've verified and stored the event. Return `401` for a bad signature.
+- Do slow work, such as updating a CRM or sending an alert, after you respond, or from a queue.
+- Deliveries can repeat and can arrive out of order. Make processing idempotent by keying on the email `id` and the event type.
+- A tutorial shows a complete handler: [Handle bounces with webhooks](/tutorials/handle-bounces).

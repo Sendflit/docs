@@ -1,0 +1,63 @@
+---
+title: "Emails and their lifecycle"
+description: "What happens to an email from the moment you send it: statuses, events, scheduling, cancellation and tracking."
+---
+
+Each email gets an `id` when you send it. Use that `id` to read its status, cancel a scheduled send, or match webhook events to the original message.
+
+## Status
+
+Sending returns a status:
+
+| Status | Meaning |
+|---|---|
+| `sent` | Accepted by our sending infrastructure and handed off to the receiving server. |
+| `scheduled` | Queued to send at `scheduled_at`. |
+
+Later events describe what happened to the message. They arrive as [webhooks](/reference/webhooks) and are also visible on the email:
+
+| Event | Meaning |
+|---|---|
+| `email.sent` | Accepted by sending infrastructure. |
+| `email.delivered` | Accepted by the recipient's mail server. |
+| `email.delivery_delayed` | The recipient's server is delaying delivery and will retry. |
+| `email.bounced` | Delivery failed permanently. The address is suppressed. |
+| `email.complained` | The recipient marked the message as spam. The address is suppressed. |
+| `email.opened` | The tracking pixel loaded. |
+| `email.clicked` | A tracked link was followed. |
+| `email.unsubscribed` | The recipient used the unsubscribe link. |
+| `email.failed` | We couldn't hand the message off. |
+| `email.cancelled` | A scheduled email was cancelled before it sent. |
+
+## Read an email
+
+```bash
+curl https://api.sendflit.com/v1/emails/<email_id> \
+  -H "Authorization: Bearer $SENDFLIT_KEY"
+```
+
+List recent emails with `GET /v1/emails`.
+
+## Schedule an email
+
+Pass an ISO 8601 timestamp as `scheduled_at`:
+
+```json
+{
+  "from": "reminders@yourdomain.com",
+  "to": "user@example.com",
+  "subject": "Your trial ends tomorrow",
+  "html": "<p>...</p>",
+  "scheduled_at": "2026-09-01T09:00:00Z"
+}
+```
+
+Relative times such as "in one hour" aren't supported. Compute the timestamp in your code.
+
+To cancel before it sends, use `POST /v1/emails/{id}/cancel` or `DELETE /v1/emails/{id}`. To move it, use `PATCH /v1/emails/{id}`.
+
+## Recipients and content
+
+- One address per `to`. Use `cc` and `bcc`, or send one email per recipient with the batch endpoint.
+- Up to 10 attachments per email, 10 MB each.
+- Use absolute URLs for images. Inline `cid:` images arrive as attachments.

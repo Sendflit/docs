@@ -1,0 +1,56 @@
+---
+title: "Domains"
+description: "How sending domains work: DKIM, SPF and DMARC records, verification, and why verification is required."
+---
+
+Every email you send is signed with a sending domain you control. Receiving servers check the signature and the published DNS records to decide whether to trust your mail, so verification comes first.
+
+## What SendFlit checks
+
+| Record | Host | Purpose |
+|---|---|---|
+| DKIM (`TXT`) | `sendflit._domainkey.yourdomain.com` | Signs your mail with a 2048-bit key unique to your domain. |
+| SPF (`TXT`) | `yourdomain.com` | Authorizes SendFlit to send for your domain. |
+| DMARC (`TXT`) | `_dmarc.yourdomain.com` | Sets your policy for failed checks and where aggregate reports go. |
+
+Sending from a domain that isn't verified returns `403`.
+
+## Add a domain
+
+<Steps>
+  <Step title="Register the domain">
+    ```bash
+    curl -X POST https://api.sendflit.com/v1/domains \
+      -H "Authorization: Bearer $SENDFLIT_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"name": "yourdomain.com"}'
+    ```
+    The response includes the domain `id` and the records to publish.
+  </Step>
+  <Step title="Publish the DNS records">
+    Add each `TXT` record at your DNS provider. Changes can take time to propagate.
+  </Step>
+  <Step title="Verify">
+    ```bash
+    curl -X POST https://api.sendflit.com/v1/domains/<domain_id>/verify \
+      -H "Authorization: Bearer $SENDFLIT_KEY"
+    ```
+    Verification reads the live DNS records. Run it again if the records aren't visible yet.
+  </Step>
+</Steps>
+
+<Tip>
+If your DNS is in Amazon Route 53, you can connect AWS credentials once in the dashboard and SendFlit publishes the records for you.
+</Tip>
+
+## List and inspect domains
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/v1/domains` | List your domains. |
+| `GET` | `/v1/domains/{id}` | Get one domain and its verification state. |
+| `POST` | `/v1/domains/{id}/verify` | Check DNS and verify. |
+
+## Subdomains
+
+Use a subdomain, such as `mail.yourdomain.com`, to keep transactional mail separate from your main domain's reputation. Register the subdomain as its own domain, then publish its records.

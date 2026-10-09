@@ -26,6 +26,14 @@
         ]
       },
       {
+        "group": "Core concepts",
+        "pages": [
+          "concepts/domains",
+          "concepts/api-keys",
+          "concepts/emails"
+        ]
+      },
+      {
         "group": "SDKs",
         "pages": [
           "sdks/node",
