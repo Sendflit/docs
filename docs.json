@@ -2,14 +2,46 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "SendFlit",
+  "description": "Official SDKs and API reference for the SendFlit transactional email API",
   "colors": {
     "primary": "#111111",
     "light": "#F5F5F5",
     "dark": "#EDEDED"
   },
+  "navbar": {
+    "links": [],
+    "primary": {
+      "type": "button",
+      "label": "Dashboard",
+      "href": "https://app.sendflit.com"
+    }
+  },
   "navigation": {
     "groups": [
-      { "group": "Get started", "pages": ["index"] }
+      {
+        "group": "Get started",
+        "pages": ["index", "quickstart"]
+      },
+      {
+        "group": "SDKs",
+        "pages": [
+          "sdks/node",
+          "sdks/python",
+          "sdks/go",
+          "sdks/ruby",
+          "sdks/php",
+          "sdks/java",
+          "sdks/dotnet"
+        ]
+      },
+      {
+        "group": "Email templates",
+        "pages": ["sdks/templates/react-email"]
+      },
+      {
+        "group": "Reference",
+        "pages": ["reference/errors", "reference/webhooks"]
+      }
     ]
   }
 }
