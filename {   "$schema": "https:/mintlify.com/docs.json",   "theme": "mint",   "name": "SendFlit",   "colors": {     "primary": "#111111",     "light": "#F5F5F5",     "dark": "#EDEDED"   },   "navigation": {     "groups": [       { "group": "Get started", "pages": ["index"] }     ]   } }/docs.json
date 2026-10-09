@@ -87,6 +87,21 @@
         "pages": [
           "sdks/templates/react-email"
         ]
+      },
+      {
+        "group": "SDKs",
+        "pages": []
+      },
+      {
+        "group": "Email templates",
+        "pages": []
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/errors",
+          "reference/webhooks"
+        ]
       }
     ]
   }
