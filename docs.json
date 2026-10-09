@@ -1,0 +1,15 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "SendFlit",
+  "colors": {
+    "primary": "#111111",
+    "light": "#F5F5F5",
+    "dark": "#EDEDED"
+  },
+  "navigation": {
+    "groups": [
+      { "group": "Get started", "pages": ["index"] }
+    ]
+  }
+}
