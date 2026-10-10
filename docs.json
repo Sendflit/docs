@@ -19,7 +19,7 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Documentation",
+        "tab": "Docs",
         "groups": [
           {
             "group": "Get started",
@@ -98,7 +98,7 @@
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API",
         "groups": [
           {
             "group": "API reference",
