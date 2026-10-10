@@ -1,163 +1,267 @@
 ---
 title: "Node.js"
-description: "Send transactional email from Node.js 18+ with the @sendflit/sdk package."
+description: "Send transactional email from Node.js 18+ with the @sendflit/sdk package: send, batch, manage emails and domains, retry safely, and verify webhooks."
 ---
+
+The Node.js SDK is `@sendflit/sdk`. It has no runtime dependencies, uses the built-in `fetch`, and works in Node.js 18 and later, in TypeScript and in plain JavaScript.
+
+<Info>
+Looking for another language? See the [SDK overview](/sdks/overview).
+</Info>
 
 ## Install
 
-<CodeGroup>
-```bash npm
+```bash
 npm install @sendflit/sdk
 ```
-```bash pnpm
-pnpm add @sendflit/sdk
-```
-```bash yarn
-yarn add @sendflit/sdk
-```
-</CodeGroup>
 
-Requires Node.js 18 or later. The SDK uses the built-in `fetch`.
+## Create a client
+
+Read your key from the environment. Never put a live key in source code.
+
+```js
+import { SendFlit } from "@sendflit/sdk";
+
+const sendflit = new SendFlit({ apiKey: process.env.SENDFLIT_API_KEY });
+```
+
+The constructor accepts these options:
+
+| Option | Default | What it does |
+|---|---|---|
+| `apiKey` | none, required | Your API key. Starts with `re_`. Missing keys throw a `TypeError`. |
+| `baseUrl` | `https://api.sendflit.com` | Change this only to point at a test or proxy server. |
+| `timeout` | `15000` | Milliseconds before a request is aborted with `SendFlitTimeoutError`. |
+| `maxRetries` | `2` | Retries for `429` responses and `5xx` responses. Network errors are not retried. |
 
 ## Send an email
 
+Call `send` with an email object. It returns the stored email's `id` and `status`.
+
 ```js
-import SendFlit from "@sendflit/sdk";
-
-const sendflit = new SendFlit({ apiKey: process.env.SENDFLIT_API_KEY });
-
-const { id } = await sendflit.send({
+const res = await sendflit.send({
   from: "you@yourdomain.com",
   to: "user@example.com",
   subject: "Confirm your email",
-  html: "<p>Click <a href='...'>here</a> to confirm.</p>",
+  html: "<p>Click <a href='https://app.example.com/confirm?t=abc'>here</a> to confirm.</p>",
+  text: "Confirm your email: https://app.example.com/confirm?t=abc",
 });
+
+console.log(res.id, res.status);
 ```
 
-## Attachments
+Every field you can set on the email:
 
-Up to 10 attachments per message, 10 MB each.
+| Field | Type | Notes |
+|---|---|---|
+| `from` | string | Required. Must use a verified domain. |
+| `to` | string | Required. One address. |
+| `toName` | string | Display name for the recipient. |
+| `cc`, `bcc` | string[] | Extra recipients. |
+| `subject` | string | Subject line. |
+| `html`, `text` | string | Body. Send one or both. |
+| `replyTo` | string | Where replies go. |
+| `headers` | object | Extra message headers, for example `{ "List-Unsubscribe": "<...>" }`. |
+| `scheduledAt` | string | An ISO 8601 date-time. The email is sent at that time. |
+| `templateId`, `templateName` | string | Send a stored template instead of `html`. |
+| `variables` | object | Values for the template placeholders. |
+| `attachments` | array | See [Attachments](#attachments). |
+
+The SDK converts camelCase names to the API's snake_case names for you.
+
+### Send with a template
 
 ```js
 await sendflit.send({
   from: "billing@yourdomain.com",
   to: "user@example.com",
+  templateName: "receipt",
+  variables: { order_id: "1042", total: "$24.00" },
+});
+```
+
+## Attachments
+
+Each attachment is an object with a `filename`, `content` and an optional `contentType`. A string is encoded as UTF-8 and a `Buffer` or `Uint8Array` is encoded as-is.
+
+```js
+import { readFile } from "node:fs/promises";
+
+await sendflit.send({
+  from: "billing@yourdomain.com",
+  to: "user@example.com",
   subject: "Your receipt",
-  html: "<p>Thanks for your purchase.</p>",
+  html: "<p>Your receipt is attached.</p>",
   attachments: [
-    { filename: "receipt.pdf", content: pdfBuffer }, // Buffer or Uint8Array
-    { filename: "note.txt", content: "plain text is fine" }, // string
+    {
+      filename: "receipt.pdf",
+      content: await readFile("./receipt.pdf"),
+      contentType: "application/pdf",
+    },
+    { filename: "notes.txt", content: "Thanks for your order." },
   ],
 });
 ```
 
-## Batch send
+Limits:
 
-Send up to 100 emails in one request. Each message gets its own result, so one bad recipient doesn't fail the batch.
+- Up to 10 attachments per message.
+- Up to 10 MB per attachment. Larger files are rejected with `422`.
+
+## Safe retries with idempotency keys
+
+A network timeout doesn't tell you whether the server sent the email. Pass an idempotency key so a retry can't send it twice.
+
+```js
+const key = `order-confirmation-${orderId}`;
+
+await sendflit.send(
+  { from: "orders@yourdomain.com", to: buyer.email, subject: "Order confirmed", html },
+  key,
+);
+```
+
+If you send the same key with the same body again, the API returns the original result and does not send a second email. If you reuse a key with a different body, the API rejects the request with `409`. That means your code has a bug, so generate a new key for a new email. For the full rules, see [Idempotency](/guides/idempotency).
+
+## Send a batch
+
+`batch` sends up to 100 emails in one request. The response has a `results` array with one entry per email, in the order you sent them, and a `count`.
 
 ```js
 const { results } = await sendflit.batch([
-  { from: "you@yourdomain.com", to: "a@example.com", subject: "Hi A", html: "<p>A</p>" },
-  { from: "you@yourdomain.com", to: "b@example.com", subject: "Hi B", html: "<p>B</p>" },
-]);
+  { from: "news@yourdomain.com", to: "a@example.com", subject: "Digest", html: "<p>Hi A</p>" },
+  { from: "news@yourdomain.com", to: "b@example.com", subject: "Digest", html: "<p>Hi B</p>" },
+], `digest-${today}`);
 ```
 
-## Templates
+The second argument is an optional idempotency key that covers the whole batch. An empty array, or more than 100 emails, throws a `TypeError` or `RangeError` before any request is made. See [Batch sending](/guides/batch-sending).
+
+## Manage emails
 
 ```js
-await sendflit.send({
-  from: "you@yourdomain.com",
-  to: "user@example.com",
-  templateId: "tmpl_...",
-  variables: { name: "Ada" },
-});
+// List recent emails. Use limit and offset to page through results.
+const page = await sendflit.listEmails({ limit: 20, offset: 0 });
+
+// Look up one email by its id.
+const email = await sendflit.getEmail("em_123");
+
+// Cancel an email that is scheduled but not sent yet.
+await sendflit.cancelEmail("em_123");
 ```
 
-## Scheduled send
+`cancelEmail` removes an email that is still scheduled. If the email has already been sent, the API returns an error, which the SDK throws as a `SendFlitError` with the status and body.
 
-Pass an ISO 8601 timestamp.
+## Domains
+
+Add the domain, publish the DNS records it returns, then verify it. You can send only from a verified domain.
 
 ```js
-await sendflit.send({
-  from: "you@yourdomain.com",
-  to: "user@example.com",
-  subject: "Weekly digest",
-  html: "<p>...</p>",
-  scheduledAt: new Date("2026-09-05T09:00:00Z").toISOString(),
-});
+const domain = await sendflit.addDomain("yourdomain.com");
+console.log(domain.id);
+
+const all = await sendflit.listDomains();
+
+// Run after the DNS records are live. Changes can take time to propagate.
+const status = await sendflit.verifyDomain(domain.id);
 ```
 
-## Safe retries
+For the DNS records and the dashboard steps, see [Domains](/concepts/domains).
 
-Pass an idempotency key as the second argument. Retrying with the same key and body returns the original result instead of sending again. Reusing the key with a different body returns `409`. See [Errors, retries and limits](/reference/errors#idempotency).
+## Suppressions
+
+Suppressed addresses never receive email from your account. Add an address when a recipient unsubscribes or complains.
 
 ```js
-await sendflit.send({
-  from: "you@yourdomain.com",
-  to: "user@example.com",
-  subject: "Order confirmed",
-  html: "<p>...</p>",
-}, `order-${orderId}`);
+await sendflit.suppress({ email: "user@example.com", reason: "unsubscribe" });
 ```
+
+`suppress` takes one object. `reason` is optional and defaults to `"unsubscribe"`. See [Emails](/concepts/emails) for how suppressions interact with sending.
+
+## Usage and health
+
+```js
+const usage = await sendflit.usage();   // usage counts for your account
+const ok = await sendflit.health();     // calls GET /health
+```
+
+`health` doesn't need a valid key. Use it in a readiness probe or a startup check.
 
 ## Verify webhooks
 
-Use the raw request body. Parsing it first changes the bytes and breaks the signature check. See [Webhooks](/reference/webhooks) for the event list.
+SendFlit signs every webhook request. The signature is an HMAC-SHA256 of the raw request body, sent in the `X-Sendflit-Signature` header as `sha256=<hex>`.
 
 ```js
 import express from "express";
 import { verifyWebhookSignature } from "@sendflit/sdk";
 
-app.post("/webhooks/sendflit",
-  express.raw({ type: "application/json" }),
-  (req, res) => {
-    if (!verifyWebhookSignature(WEBHOOK_SECRET, req.body, req.headers["x-sendflit-signature"])) {
-      return res.status(401).end();
-    }
-    const event = JSON.parse(req.body);
-    if (event.type === "email.bounced") {
-      // suppress the address, alert, ...
-    }
-    res.status(200).end();
-  });
+const app = express();
+
+app.post("/webhooks/sendflit", express.raw({ type: "application/json" }), (req, res) => {
+  const ok = verifyWebhookSignature(
+    process.env.SENDFLIT_WEBHOOK_SECRET,
+    req.body,                                  // the raw Buffer, not parsed JSON
+    req.headers["x-sendflit-signature"],
+  );
+  if (!ok) return res.status(401).end();
+
+  const event = JSON.parse(req.body.toString("utf8"));
+  // handle event.type here
+  res.status(200).end();
+});
 ```
 
-## Client options
+The SDK also exports `webhookMiddleware(secret)`. It checks the signature on `req.body`, which must be the raw Buffer, returns `401` if the check fails, and otherwise sets `req.sendflitEvent` to the parsed event and calls `next()`. Keep the body raw until verification finishes. If you parse it first, the signature won't match. See [Webhooks](/reference/webhooks) for the event list.
 
-| Option | Default | Notes |
-|---|---|---|
-| `apiKey` | none | Required. Starts with `re_`. |
-| `baseUrl` | `https://api.sendflit.com` | Change only if you run against a different API host. |
-| `timeout` | `15000` | Per request, in milliseconds. |
-| `maxRetries` | `2` | Retries 429 and 5xx responses with backoff. Honors `Retry-After`. |
+## Errors and retries
 
-## Methods
+Every failed request throws a `SendFlitError`:
 
-| Method | Endpoint |
+| Property | Meaning |
 |---|---|
-| `send(email, idempotencyKey?)` | `POST /v1/email` |
-| `batch(emails, idempotencyKey?)` | `POST /v1/emails/batch` |
-| `listEmails({ limit, offset, status })` | `GET /v1/emails` |
-| `getEmail(id)` / `cancelEmail(id)` | `GET` / `DELETE /v1/emails/{id}` |
-| `addDomain(name)` / `listDomains()` / `verifyDomain(id)` | `/v1/domains` |
-| `createTemplate(t)` / `listTemplates()` | `/v1/templates` |
-| `addContact(c)` / `listContacts(q)` | `/v1/contacts` |
-| `suppress({ email, reason })` | `POST /v1/suppressions` |
-| `usage()` / `health()` | `/v1/usage`, `/health` |
+| `message` | A short description. |
+| `status` | The HTTP status code. `0` for a network failure. |
+| `body` | The parsed response body, when the API returned one. |
 
-## Errors
-
-Failed requests throw a `SendFlitError` with `.status` and `.body`. See [Errors, retries and limits](/reference/errors).
+A request that times out throws `SendFlitTimeoutError`, a subclass of `SendFlitError`.
 
 ```js
-import { SendFlitError } from "@sendflit/sdk";
+import { SendFlitError, SendFlitTimeoutError } from "@sendflit/sdk";
 
 try {
-  await sendflit.send(email);
+  await sendflit.send(email, key);
 } catch (err) {
-  if (err instanceof SendFlitError) {
-    console.error(err.status, err.body);
+  if (err instanceof SendFlitTimeoutError) {
+    // Safe to retry with the same idempotency key.
+  } else if (err instanceof SendFlitError && err.status === 422) {
+    console.error("Invalid email:", err.body);
+  } else {
+    throw err;
   }
-  throw err;
 }
 ```
+
+Requests that fail with `429` or a `5xx` status are retried up to `maxRetries` times. The SDK waits for the `Retry-After` header when it's present, and otherwise backs off exponentially. Other `4xx` responses are not retried. Network failures are thrown right away with status `0`. See [Errors, retries and limits](/reference/errors).
+
+## Method reference
+
+| Method | Endpoint | Returns |
+|---|---|---|
+| `send(email, idempotencyKey?)` | `POST /v1/email` | `{ id, status, ... }` |
+| `batch(emails, idempotencyKey?)` | `POST /v1/emails/batch` | `{ results, count }` |
+| `listEmails({ limit, offset, status })` | `GET /v1/emails` | Page of emails |
+| `getEmail(id)` | `GET /v1/emails/{id}` | One email |
+| `cancelEmail(id)` | `DELETE /v1/emails/{id}` | Cancellation result |
+| `addDomain(name)` | `POST /v1/domains` | Domain with DNS records |
+| `listDomains()` | `GET /v1/domains` | Your domains |
+| `verifyDomain(id)` | `POST /v1/domains/{id}/verify` | Verification state |
+| `suppress({ email, reason? })` | `POST /v1/suppressions` | Suppression |
+| `usage()` | `GET /v1/usage` | Usage counts |
+| `health()` | `GET /health` | Service status |
+| `verifyWebhookSignature(secret, rawBody, header)` | none, local check | `true` or `false` |
+
+## Next steps
+
+- [Quickstart](/quickstart): send your first email from the command line.
+- [Batch sending](/guides/batch-sending): limits and per-item results.
+- [Idempotency](/guides/idempotency): the full retry rules.
+- [Webhooks](/reference/webhooks): events and payloads.

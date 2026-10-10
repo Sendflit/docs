@@ -1,7 +1,13 @@
 ---
 title: "PHP"
-description: "Send transactional email from PHP 7.4+ with the sendflit/sendflit Composer package."
+description: "Send transactional email from PHP 7.4+ with the sendflit/sendflit Composer package: array-based sends, batch, attachments, domains, suppressions, errors and webhook verification."
 ---
+
+The PHP SDK is the `sendflit/sendflit` Composer package. It uses PHP's `curl` extension and `json` extension, and has no other dependencies. It requires PHP 7.4 or later.
+
+<Info>
+Looking for another language? See the [SDK overview](/sdks/overview).
+</Info>
 
 ## Install
 
@@ -11,43 +17,223 @@ composer require sendflit/sendflit
 
 Requires PHP 7.4 or later with the `curl` and `json` extensions.
 
-## Send an email
+## Create a client
 
 ```php
 require 'vendor/autoload.php';
 
-$sf = new SendFlit('re_...');
+$sf = new SendFlit(getenv('SENDFLIT_API_KEY'));
+```
 
+The constructor takes these arguments:
+
+| Argument | Default | What it does |
+|---|---|---|
+| `$apiKey` | none, required | Your API key. Starts with `re_`. An empty key throws `InvalidArgumentException`. |
+| `$baseUrl` | `https://api.sendflit.com` | Change this only to point at a test or proxy server. |
+| `$timeout` | `15` | Seconds before a request is abandoned. |
+| `$maxRetries` | `2` | Retries for `429` and `5xx` responses. |
+
+## Send an email
+
+`send` takes an associative array and returns the response as an array.
+
+```php
 $res = $sf->send([
     'from'    => 'you@yourdomain.com',
     'to'      => 'user@example.com',
     'subject' => 'Confirm your email',
-    'html'    => "<p>Click <a href='...'>here</a>.</p>",
+    'html'    => "<p>Click <a href='https://app.example.com/confirm?t=abc'>here</a>.</p>",
+    'text'    => 'Confirm your email: https://app.example.com/confirm?t=abc',
 ]);
-echo $res['id'], $res['status'];
+
+echo $res['id'], ' ', $res['status'];
 ```
 
-## Attachments and batch send
+The array keys match the API's field names:
 
-Up to 10 attachments per message, 10 MB each. Up to 100 messages per batch.
+| Key | Type | Notes |
+|---|---|---|
+| `from` | string | Required. Must use a verified domain. |
+| `to` | string | Required. One address. |
+| `to_name` | string | Display name for the recipient. |
+| `cc`, `bcc` | array of strings | Extra recipients. |
+| `subject` | string | Subject line. |
+| `html`, `text` | string | Body. Send one or both. |
+| `reply_to` | string | Where replies go. |
+| `headers` | array | Extra message headers. |
+| `template_id`, `template_name` | string | Send a stored template instead of `html`. |
+| `variables` | array | Values for the template placeholders. |
+| `scheduled_at` | string | An ISO 8601 date-time. |
+| `attachments` | array | See [Attachments](#attachments). |
+
+### Send with a template
 
 ```php
 $sf->send([
-    'from' => 'billing@yourdomain.com', 'to' => 'u@example.com', 'subject' => 'Receipt',
-    'attachments' => [['filename' => 'receipt.pdf', 'content' => $pdfBytes]],
+    'from'          => 'billing@yourdomain.com',
+    'to'            => 'user@example.com',
+    'template_name' => 'receipt',
+    'variables'     => ['order_id' => '1042', 'total' => '$24.00'],
+]);
+```
+
+## Attachments
+
+Each attachment is an array with `filename`, `content` and an optional `content_type`. The SDK base64-encodes `content` for you. Pass the raw file contents, not a path.
+
+```php
+$pdfBytes = file_get_contents('receipt.pdf');
+
+$sf->send([
+    'from'        => 'billing@yourdomain.com',
+    'to'          => 'user@example.com',
+    'subject'     => 'Your receipt',
+    'html'        => '<p>Your receipt is attached.</p>',
+    'attachments' => [
+        [
+            'filename'     => 'receipt.pdf',
+            'content'      => $pdfBytes,
+            'content_type' => 'application/pdf',
+        ],
+    ],
+]);
+```
+
+Limits:
+
+- Up to 10 attachments per message.
+- Up to 10 MB per attachment. Larger files are rejected with `422`.
+
+## Send a batch
+
+`batch` sends up to 100 emails in one request. It takes an array of arrays, each with the same keys as `send`.
+
+```php
+$result = $sf->batch([
+    ['from' => 'news@yourdomain.com', 'to' => 'a@example.com', 'subject' => 'Digest', 'html' => '<p>Hi A</p>'],
+    ['from' => 'news@yourdomain.com', 'to' => 'b@example.com', 'subject' => 'Digest', 'html' => '<p>Hi B</p>'],
 ]);
 
-$sf->batch([ ['from' => 'you@yourdomain.com', 'to' => 'a@example.com', 'subject' => 'Hi'] ]);
+foreach ($result['results'] as $item) {
+    echo $item['id'], ' ', $item['status'], PHP_EOL;
+}
+```
+
+The response has a `results` array in the same order as your input, and a `count`. An empty array throws `InvalidArgumentException`, and more than 100 emails throws `RangeException`, before any request is made. See [Batch sending](/guides/batch-sending).
+
+<Warning>
+The PHP SDK doesn't send an `Idempotency-Key` header yet, so a retried send can deliver twice. Check the earlier result before you retry. See [Idempotency](/guides/idempotency).
+</Warning>
+
+## Manage emails
+
+```php
+$page  = $sf->listEmails(20, 0);        // limit, offset
+$email = $sf->getEmail('em_123');       // one email by id
+$sf->cancelEmail('em_123');             // cancel while still scheduled
+```
+
+`cancelEmail` removes an email that hasn't been sent yet. If the email was already sent, the API returns an error, which the SDK throws as `SendFlitException`.
+
+## Domains
+
+```php
+$domain = $sf->addDomain('yourdomain.com');
+echo $domain['id'];
+
+$sf->listDomains();
+
+// Run after the DNS records are live. Changes can take time to propagate.
+$sf->verifyDomain($domain['id']);
+```
+
+You can send only from a verified domain. For DNS setup, see [Domains](/concepts/domains).
+
+## Suppressions
+
+```php
+$sf->suppress('user@example.com', 'unsubscribe');
+```
+
+The second argument is optional and defaults to `'unsubscribe'`. See [Emails](/concepts/emails).
+
+## Usage and health
+
+```php
+$sf->usage();   // usage counts for your account
+$sf->health();  // calls GET /health, which doesn't need a valid key
 ```
 
 ## Verify webhooks
 
-See [Webhooks](/reference/webhooks) for the event list.
+SendFlit signs each webhook. The `X-Sendflit-Signature` header carries `sha256=<hex>`, an HMAC-SHA256 of the raw request body.
 
 ```php
-$ok = SendFlit::verifyWebhookSignature($secret, $rawBody, $_SERVER['HTTP_X_SENDFLIT_SIGNATURE'] ?? '');
+$raw = file_get_contents('php://input');   // the raw body, before any parsing
+
+$ok = SendFlit::verifyWebhookSignature(
+    getenv('SENDFLIT_WEBHOOK_SECRET'),
+    $raw,
+    $_SERVER['HTTP_X_SENDFLIT_SIGNATURE'] ?? ''
+);
+
+if (!$ok) {
+    http_response_code(401);
+    exit;
+}
+
+$event = json_decode($raw, true);
+// handle $event['type'] here
 ```
 
-## Errors
+The check uses `hash_equals`, which runs in constant time. Read `php://input` before anything else touches the request body. See [Webhooks](/reference/webhooks) for the event list.
 
-Failed requests throw `SendFlitException`. Use `getCode()` for the HTTP status and `->body` for the response body. See [Errors, retries and limits](/reference/errors).
+## Errors and retries
+
+Every failed request throws `SendFlitException`:
+
+| Member | Meaning |
+|---|---|
+| `getMessage()` | A short description. |
+| `getCode()` | The HTTP status code. `0` for a network failure. |
+| `$body` | The decoded response body, as an array. |
+
+```php
+try {
+    $sf->send(['from' => 'you@yourdomain.com', 'to' => 'user@example.com', 'subject' => 'Hi', 'html' => '<p>Hi</p>']);
+} catch (SendFlitException $e) {
+    if ($e->getCode() === 422) {
+        error_log('Invalid email: ' . json_encode($e->body));
+    } elseif ($e->getCode() === 0) {
+        error_log('Network problem: ' . $e->getMessage());
+    } else {
+        throw $e;
+    }
+}
+```
+
+Requests that fail with `429` or `5xx` are retried up to `$maxRetries` times, with exponential backoff. Other `4xx` responses are not retried. See [Errors, retries and limits](/reference/errors).
+
+## Method reference
+
+| Method | Endpoint | Returns |
+|---|---|---|
+| `send(array $email)` | `POST /v1/email` | array |
+| `batch(array $emails)` | `POST /v1/emails/batch` | array with `results` and `count` |
+| `listEmails(?int $limit, ?int $offset, ?string $status)` | `GET /v1/emails` | array |
+| `getEmail(string $id)` | `GET /v1/emails/{id}` | array |
+| `cancelEmail(string $id)` | `DELETE /v1/emails/{id}` | array |
+| `addDomain(string $name)` | `POST /v1/domains` | array |
+| `listDomains()` | `GET /v1/domains` | array |
+| `verifyDomain(string $id)` | `POST /v1/domains/{id}/verify` | array |
+| `suppress(string $email, string $reason)` | `POST /v1/suppressions` | array |
+| `usage()` | `GET /v1/usage` | array |
+| `health()` | `GET /health` | array |
+| `SendFlit::verifyWebhookSignature($secret, $rawBody, $signature)` | none, local check | `bool` |
+
+## Next steps
+
+- [Quickstart](/quickstart): send your first email from the command line.
+- [Batch sending](/guides/batch-sending): limits and per-item results.
+- [Webhooks](/reference/webhooks): events and payloads.

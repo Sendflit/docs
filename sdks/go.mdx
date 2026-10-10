@@ -1,7 +1,13 @@
 ---
 title: "Go"
-description: "Send transactional email from Go with the sendflit-go module. Standard library only."
+description: "Send transactional email from Go with github.com/Sendflit/sendflit-go: context-aware sends, batch, domains, suppressions, errors and webhook verification."
 ---
+
+The Go SDK is the module `github.com/Sendflit/sendflit-go`. It uses only the standard library, so it has no third-party dependencies. The package name is `sendflit`. It requires Go 1.21 or later.
+
+<Info>
+Looking for another language? See the [SDK overview](/sdks/overview).
+</Info>
 
 ## Install
 
@@ -9,47 +15,228 @@ description: "Send transactional email from Go with the sendflit-go module. Stan
 go get github.com/Sendflit/sendflit-go
 ```
 
-Requires Go 1.21 or later.
+Import it in your code:
+
+```go
+import "github.com/Sendflit/sendflit-go"
+```
+
+## Create a client
+
+```go
+client := sendflit.New(os.Getenv("SENDFLIT_API_KEY"))
+```
+
+`New` returns a client with a 15 second timeout and 2 retries. To point the client at a test server, use `NewWithBaseURL(apiKey, baseURL)`. You can also change the `HTTP` and `MaxRetries` fields on the returned `*Client`.
+
+Every method takes a `context.Context` first. Use it to cancel a call or to set a deadline:
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+```
 
 ## Send an email
 
-```go
-package main
+`Send` takes an `Email` struct and returns a `*SendResult`.
 
+```go
+res, err := client.Send(ctx, sendflit.Email{
+	From:    "you@yourdomain.com",
+	To:      "user@example.com",
+	Subject: "Confirm your email",
+	HTML:    `<p>Click <a href="https://app.example.com/confirm?t=abc">here</a>.</p>`,
+	Text:    "Confirm your email: https://app.example.com/confirm?t=abc",
+})
+if err != nil {
+	return err
+}
+fmt.Println(res.ID, res.Status)
+```
+
+Fields on `Email`:
+
+| Field | Type | Notes |
+|---|---|---|
+| `From` | string | Required. Must use a verified domain. |
+| `To` | string | Required. One address. |
+| `ToName` | string | Display name for the recipient. |
+| `CC`, `BCC` | []string | Extra recipients. |
+| `Subject` | string | Subject line. |
+| `HTML`, `Text` | string | Body. Send one or both. |
+| `ReplyTo` | string | Where replies go. |
+| `Headers` | map[string]string | Extra message headers. |
+| `ScheduledAt` | string | An ISO 8601 date-time. |
+| `TemplateID`, `TemplateName` | string | Send a stored template instead of `HTML`. |
+| `Variables` | map[string]string | Values for the template placeholders. |
+| `Attachments` | []Attachment | See [Attachments](#attachments). |
+
+`SendResult` has `ID`, `Status`, and `To`.
+
+## Attachments
+
+Use `Attach` for text content and `AttachBytes` for binary content. Both base64-encode the data for you.
+
+```go
+data, err := os.ReadFile("receipt.pdf")
+if err != nil {
+	return err
+}
+
+email := sendflit.Email{
+	From:    "billing@yourdomain.com",
+	To:      "user@example.com",
+	Subject: "Your receipt",
+	HTML:    "<p>Your receipt is attached.</p>",
+}
+email.AttachBytes("receipt.pdf", data, "application/pdf")
+email.Attach("notes.txt", "Thanks for your order.", "text/plain")
+
+res, err := client.Send(ctx, email)
+```
+
+Limits:
+
+- Up to 10 attachments per message.
+- Up to 10 MB per attachment. Larger files are rejected with `422`.
+
+## Send a batch
+
+`Batch` sends up to 100 emails in one request and returns a `[]SendResult` in the same order as your input.
+
+```go
+results, err := client.Batch(ctx, []sendflit.Email{
+	{From: "news@yourdomain.com", To: "a@example.com", Subject: "Digest", HTML: "<p>Hi A</p>"},
+	{From: "news@yourdomain.com", To: "b@example.com", Subject: "Digest", HTML: "<p>Hi B</p>"},
+})
+```
+
+An empty slice, or more than 100 emails, returns an error before any request is made. See [Batch sending](/guides/batch-sending).
+
+<Warning>
+The Go SDK doesn't send an `Idempotency-Key` header yet. If a send times out and you retry it, the email can be sent twice. For now, check the result of the earlier call before you retry, or send the request yourself with the header. See [Idempotency](/guides/idempotency).
+</Warning>
+
+## List emails
+
+```go
+items, err := client.ListEmails(ctx, sendflit.ListEmailsOptions{
+	Limit:  20,
+	Offset: 0,
+	Status: "", // leave empty to include every status
+})
+for _, item := range items {
+	fmt.Println(item.ID, item.To, item.Subject, item.Status)
+}
+```
+
+The Go SDK doesn't offer get-by-id or cancel methods yet. Call `GET /v1/emails/{id}` or `DELETE /v1/emails/{id}` directly if you need them. See the [API reference](/reference/api-overview).
+
+## Domains
+
+```go
+domain, err := client.AddDomain(ctx, "yourdomain.com")
+fmt.Println(domain.ID, domain.Name)
+
+domains, err := client.ListDomains(ctx)
+
+// Run after the DNS records are live. Changes can take time to propagate.
+err = client.VerifyDomain(ctx, domain.ID)
+```
+
+`VerifyDomain` returns only an error. A nil error means the call succeeded. Check the domain's state in the dashboard or with the API if you need the details. For DNS setup, see [Domains](/concepts/domains).
+
+## Suppressions
+
+```go
+err := client.Suppress(ctx, "user@example.com", "unsubscribe")
+```
+
+Suppressed addresses never receive email from your account. See [Emails](/concepts/emails).
+
+## Health
+
+```go
+if err := client.Health(ctx); err != nil {
+	log.Printf("SendFlit is unreachable: %v", err)
+}
+```
+
+`Health` calls `GET /health`. It doesn't need a valid key.
+
+## Verify webhooks
+
+```go
 import (
-	"context"
-	"fmt"
-	"log"
+	"io"
+	"net/http"
+	"os"
 
 	"github.com/Sendflit/sendflit-go"
 )
 
-func main() {
-	sfl := sendflit.New("re_...")
-
-	res, err := sfl.Send(context.Background(), sendflit.Email{
-		From:    "you@yourdomain.com",
-		To:      "user@example.com",
-		Subject: "Confirm your email",
-		HTML:    "<p>Click <a href='...'>here</a>.</p>",
-	})
+func sendflitWebhook(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body) // read the raw bytes before anything parses them
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
 	}
-	fmt.Println(res.ID, res.Status)
+	ok := sendflit.VerifyWebhookSignature(
+		os.Getenv("SENDFLIT_WEBHOOK_SECRET"),
+		body,
+		r.Header.Get("X-Sendflit-Signature"),
+	)
+	if !ok {
+		http.Error(w, "invalid signature", http.StatusUnauthorized)
+		return
+	}
+	// handle the event in body here
+	w.WriteHeader(http.StatusOK)
 }
 ```
 
-Every call takes a `context.Context`, so you can set deadlines and cancel requests.
+`VerifyWebhookSignature` returns `true` or `false`. It compares signatures in constant time. See [Webhooks](/reference/webhooks) for the event list.
 
-## Verify webhooks
+## Errors and retries
 
-See [Webhooks](/reference/webhooks) for the event list and signature details.
+Failed API calls return an `*APIError`:
+
+| Field | Meaning |
+|---|---|
+| `Status` | The HTTP status code. |
+| `Body` | The raw response body. |
+| `Msg` | A short message from the API, when there is one. |
+
+Network failures return a regular error with no status.
 
 ```go
-ok := sendflit.VerifyWebhookSignature("whsec_...", rawBody, r.Header.Get("X-Sendflit-Signature"))
+import "errors"
+
+_, err := client.Send(ctx, email)
+var apiErr *sendflit.APIError
+if errors.As(err, &apiErr) && apiErr.Status == http.StatusUnprocessableEntity {
+	log.Printf("invalid email: %s", apiErr.Body)
+}
 ```
 
-## Errors
+Requests that fail with `429` or `5xx` are retried up to `MaxRetries` times. The SDK waits for the `Retry-After` header when present, and otherwise backs off exponentially. Other `4xx` responses are not retried. See [Errors, retries and limits](/reference/errors).
 
-Failed requests return an `*sendflit.APIError` with a `.Status` field. See [Errors, retries and limits](/reference/errors).
+## Method reference
+
+| Method | Endpoint | Returns |
+|---|---|---|
+| `Send(ctx, Email)` | `POST /v1/email` | `*SendResult` |
+| `Batch(ctx, []Email)` | `POST /v1/emails/batch` | `[]SendResult` |
+| `ListEmails(ctx, ListEmailsOptions)` | `GET /v1/emails` | `[]EmailItem` |
+| `AddDomain(ctx, name)` | `POST /v1/domains` | `*Domain` |
+| `ListDomains(ctx)` | `GET /v1/domains` | `[]Domain` |
+| `VerifyDomain(ctx, id)` | `POST /v1/domains/{id}/verify` | `error` |
+| `Suppress(ctx, email, reason)` | `POST /v1/suppressions` | `error` |
+| `Health(ctx)` | `GET /health` | `error` |
+| `VerifyWebhookSignature(secret, body, sig)` | none, local check | `bool` |
+
+## Next steps
+
+- [Quickstart](/quickstart): send your first email from the command line.
+- [Batch sending](/guides/batch-sending): limits and per-item results.
+- [Webhooks](/reference/webhooks): events and payloads.

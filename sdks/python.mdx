@@ -1,7 +1,13 @@
 ---
 title: "Python"
-description: "Send transactional email from Python 3.9+ with the sendflit package."
+description: "Send transactional email from Python 3.9+ with the sendflit package: send, batch, idempotency keys, domains, suppressions and webhook verification."
 ---
+
+The Python SDK is the `sendflit` package. It has no runtime dependencies. It uses the standard library for HTTP, so it works anywhere Python 3.9 or later runs.
+
+<Info>
+Looking for another language? See the [SDK overview](/sdks/overview).
+</Info>
 
 ## Install
 
@@ -9,121 +15,251 @@ description: "Send transactional email from Python 3.9+ with the sendflit packag
 pip install sendflit
 ```
 
-<Note>
-The `sendflit` package is not on PyPI yet, so `pip install sendflit` fails until it's published. Check the [SDK status table](/) for the current state.
-</Note>
+## Create a client
 
-The SDK has no dependencies beyond the standard library and supports Python 3.9+.
+```python
+import os
+from sendflit import SendFlit
+
+sf = SendFlit(api_key=os.environ["SENDFLIT_API_KEY"])
+```
+
+The constructor accepts these arguments:
+
+| Argument | Default | What it does |
+|---|---|---|
+| `api_key` | none, required | Your API key. Starts with `re_`. An empty key raises `TypeError`. |
+| `base_url` | `https://api.sendflit.com` | Change this only to point at a test or proxy server. |
+| `timeout` | `15.0` | Seconds before a request is abandoned. |
+| `max_retries` | `2` | Retries for `429` and `5xx` responses. |
+
+The client is synchronous. Each call blocks until the API responds.
 
 ## Send an email
 
+`send` takes keyword arguments. Use `from_` for the sender, because `from` is a reserved word in Python.
+
 ```python
-from sendflit import SendFlit
-
-sf = SendFlit(api_key="re_...")  # or: SendFlit("re_...")
-
 res = sf.send(
     from_="you@yourdomain.com",
     to="user@example.com",
     subject="Confirm your email",
-    html="<p>Click <a href='...'>here</a> to confirm.</p>",
+    html="<p>Click <a href='https://app.example.com/confirm?t=abc'>here</a>.</p>",
+    text="Confirm your email: https://app.example.com/confirm?t=abc",
 )
+
 print(res["id"], res["status"])
 ```
 
-`from` is a Python keyword, so the SDK takes it as `from_`.
+`send` returns the stored email as a dictionary. Its `id` is what you use to look up or cancel the email later.
 
-## Attachments
+Arguments you can pass:
 
-Up to 10 attachments per message, 10 MB each.
+| Argument | Type | Notes |
+|---|---|---|
+| `from_` | str | Required. Must use a verified domain. |
+| `to` | str | Required. One address. |
+| `to_name` | str | Display name for the recipient. |
+| `cc`, `bcc` | list of str | Extra recipients. |
+| `subject` | str | Subject line. |
+| `html`, `text` | str | Body. Send one or both. |
+| `reply_to` | str | Where replies go. |
+| `headers` | dict | Extra message headers. |
+| `template_id`, `template_name` | str | Send a stored template instead of `html`. |
+| `variables` | dict | Values for the template placeholders. |
+| `scheduled_at` | str | An ISO 8601 date-time. |
+| `attachments` | list of dict | See [Attachments](#attachments). |
+| `idempotency_key` | str | See [Safe retries](#safe-retries-with-idempotency-keys). |
+
+### Send with a template
 
 ```python
 sf.send(
     from_="billing@yourdomain.com",
     to="user@example.com",
+    template_name="receipt",
+    variables={"order_id": "1042", "total": "$24.00"},
+)
+```
+
+## Attachments
+
+Each attachment is a dictionary with a `filename`, a `content`, and an optional `content_type`. Pass `content` as `str` or `bytes`. The SDK base64-encodes it for you.
+
+```python
+from pathlib import Path
+
+sf.send(
+    from_="billing@yourdomain.com",
+    to="user@example.com",
     subject="Your receipt",
-    html="<p>Thanks!</p>",
-    attachments=[{"filename": "receipt.pdf", "content": pdf_bytes}],
+    html="<p>Your receipt is attached.</p>",
+    attachments=[
+        {
+            "filename": "receipt.pdf",
+            "content": Path("receipt.pdf").read_bytes(),
+            "content_type": "application/pdf",
+        },
+    ],
 )
 ```
 
-## Batch send
+Limits:
 
-Send up to 100 emails in one request. Each message gets its own result.
+- Up to 10 attachments per message.
+- Up to 10 MB per attachment. Larger files are rejected with `422`.
 
-```python
-res = sf.batch([
-    {"from": "you@yourdomain.com", "to": "a@example.com", "subject": "Hi A", "html": "<p>A</p>"},
-    {"from": "you@yourdomain.com", "to": "b@example.com", "subject": "Hi B", "html": "<p>B</p>"},
-])
-```
+## Safe retries with idempotency keys
 
-## Templates
+If a request times out, you can't tell whether the server sent the email. Pass an `idempotency_key` so a retry can't send it twice.
 
 ```python
 sf.send(
-    from_="you@yourdomain.com",
-    to="user@example.com",
-    template_id="tmpl_...",
-    variables={"name": "Ada"},
-)
-```
-
-## Safe retries
-
-Pass an idempotency key. Retrying with the same key and body returns the original result. Reusing the key with a different body returns `409`. See [Errors, retries and limits](/reference/errors#idempotency).
-
-```python
-sf.send(
-    from_="you@yourdomain.com",
-    to="user@example.com",
+    from_="orders@yourdomain.com",
+    to=buyer_email,
     subject="Order confirmed",
-    html="<p>...</p>",
-    idempotency_key=f"order-{order_id}",
+    html=html,
+    idempotency_key=f"order-confirmation-{order_id}",
 )
 ```
+
+Sending the same key with the same request returns the original result and sends nothing new. Reusing a key with a different request body is rejected with `409`. That means your code has a bug, so generate a new key for a new email. For the full rules, see [Idempotency](/guides/idempotency).
+
+## Send a batch
+
+`batch` sends up to 100 emails in one request. It takes a list of dictionaries, each with the same keys as `send`, except that the sender key is `from`.
+
+```python
+result = sf.batch(
+    [
+        {"from": "news@yourdomain.com", "to": "a@example.com", "subject": "Digest", "html": "<p>Hi A</p>"},
+        {"from": "news@yourdomain.com", "to": "b@example.com", "subject": "Digest", "html": "<p>Hi B</p>"},
+    ],
+    idempotency_key=f"digest-{today}",
+)
+
+for item in result["results"]:
+    print(item)
+```
+
+The response has a `results` list, in the same order as your input, and a `count`. An empty list raises `TypeError`, and more than 100 emails raises `ValueError`, before any request is made. See [Batch sending](/guides/batch-sending).
+
+## Manage emails
+
+```python
+page = sf.list_emails(limit=20, offset=0)    # page through recent emails
+email = sf.get_email("em_123")               # one email by id
+sf.cancel_email("em_123")                    # cancel while still scheduled
+```
+
+`cancel_email` removes an email that hasn't been sent yet. If the email was already sent, the API returns an error, which the SDK raises as `SendFlitError`.
+
+## Domains
+
+```python
+domain = sf.add_domain("yourdomain.com")
+print(domain["id"])
+
+sf.list_domains()
+
+# Run after the DNS records are live. Changes can take time to propagate.
+sf.verify_domain(domain["id"])
+```
+
+You can send only from a verified domain. For the DNS records and dashboard steps, see [Domains](/concepts/domains).
+
+## Suppressions
+
+Suppressed addresses never receive email from your account. Add an address when a recipient unsubscribes or complains.
+
+```python
+sf.suppress("user@example.com", reason="unsubscribe")
+```
+
+`reason` is optional and defaults to `"unsubscribe"`. See [Emails](/concepts/emails).
+
+## Usage and health
+
+```python
+sf.usage()     # usage counts for your account
+sf.health()    # calls GET /health, which doesn't need a valid key
+```
+
+Use `health` in a readiness probe or a startup check.
 
 ## Verify webhooks
 
-Pass the raw request body, not a parsed copy. See [Webhooks](/reference/webhooks) for the event list.
+SendFlit signs each webhook. The `X-Sendflit-Signature` header carries `sha256=<hex>`, an HMAC-SHA256 of the raw request body. Use the module-level function to check it.
 
 ```python
-import json
-from flask import request
+import os
+from flask import Flask, request, abort
 from sendflit import verify_webhook_signature
 
+app = Flask(__name__)
+
 @app.post("/webhooks/sendflit")
-def hook():
-    raw = request.get_data()
-    sig = request.headers.get("X-Sendflit-Signature", "")
-    if not verify_webhook_signature(WEBHOOK_SECRET, raw, sig):
-        return {"error": "invalid signature"}, 401
-    event = json.loads(raw)
-    if event["type"] == "email.bounced":
-        ...
+def sendflit_webhook():
+    ok = verify_webhook_signature(
+        os.environ["SENDFLIT_WEBHOOK_SECRET"],
+        request.get_data(),                                  # the raw bytes, before parsing
+        request.headers.get("X-Sendflit-Signature", ""),
+    )
+    if not ok:
+        abort(401)
+    event = request.get_json()
+    # handle event["type"] here
     return "", 200
 ```
 
-## Client options
+Read the raw body with `request.get_data()` before anything parses it. A parsed or re-serialized body won't match the signature. See [Webhooks](/reference/webhooks) for the event list.
+
+## Errors and retries
+
+Every failed request raises `SendFlitError`:
+
+| Attribute | Meaning |
+|---|---|
+| `str(err)` | A short description. |
+| `status` | The HTTP status code. `0` for a network failure. |
+| `body` | The parsed response body, when the API returned one. |
 
 ```python
-SendFlit(api_key, base_url="https://api.sendflit.com", timeout=15, max_retries=2)
+from sendflit import SendFlit, SendFlitError
+
+try:
+    sf.send(from_="you@yourdomain.com", to="user@example.com", subject="Hi", html="<p>Hi</p>")
+except SendFlitError as err:
+    if err.status == 422:
+        print("Invalid email:", err.body)
+    elif err.status == 0:
+        print("Network problem. Retry with the same idempotency key.")
+    else:
+        raise
 ```
 
-## Methods
+Requests that fail with `429` or `5xx` are retried up to `max_retries` times. The SDK honors the `Retry-After` header when present, and otherwise backs off exponentially. Other `4xx` responses are not retried. See [Errors, retries and limits](/reference/errors).
 
-| Method | Endpoint |
-|---|---|
-| `send(**email, idempotency_key=None)` | `POST /v1/email` |
-| `batch(emails, idempotency_key=None)` | `POST /v1/emails/batch` |
-| `list_emails(limit, offset, status)` | `GET /v1/emails` |
-| `get_email(id)` / `cancel_email(id)` | `GET` / `DELETE /v1/emails/{id}` |
-| `add_domain(name)` / `list_domains()` / `verify_domain(id)` | `/v1/domains` |
-| `create_template(name, subject, html, text)` | `POST /v1/templates` |
-| `add_contact(email, ...)` / `list_contacts(...)` | `/v1/contacts` |
-| `suppress(email, reason)` | `POST /v1/suppressions` |
-| `usage()` / `health()` | `/v1/usage`, `/health` |
+## Method reference
 
-## Errors
+| Method | Endpoint | Returns |
+|---|---|---|
+| `send(**email, idempotency_key=None)` | `POST /v1/email` | Stored email |
+| `batch(emails, idempotency_key=None)` | `POST /v1/emails/batch` | `{results, count}` |
+| `list_emails(limit, offset, status)` | `GET /v1/emails` | Page of emails |
+| `get_email(id)` | `GET /v1/emails/{id}` | One email |
+| `cancel_email(id)` | `DELETE /v1/emails/{id}` | Cancellation result |
+| `add_domain(name)` | `POST /v1/domains` | Domain with DNS records |
+| `list_domains()` | `GET /v1/domains` | Your domains |
+| `verify_domain(id)` | `POST /v1/domains/{id}/verify` | Verification state |
+| `suppress(email, reason)` | `POST /v1/suppressions` | Suppression |
+| `usage()` | `GET /v1/usage` | Usage counts |
+| `health()` | `GET /health` | Service status |
+| `verify_webhook_signature(secret, raw_body, signature)` | none, local check | `True` or `False` |
 
-Failed requests raise `SendFlitError`, with `.status` and `.body`. See [Errors, retries and limits](/reference/errors).
+## Next steps
+
+- [Quickstart](/quickstart): send your first email from the command line.
+- [Idempotency](/guides/idempotency): the full retry rules.
+- [Batch sending](/guides/batch-sending): limits and per-item results.
+- [Webhooks](/reference/webhooks): events and payloads.

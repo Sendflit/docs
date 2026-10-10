@@ -1,62 +1,231 @@
 ---
 title: "Java"
-description: "Send transactional email from Java 17+ with the com.sendflit:sendflit package."
+description: "Send transactional email from Java 17+ with the com.sendflit:sendflit artifact: builder-based sends, batch, attachments, domains, suppressions, errors and webhook verification."
 ---
+
+The Java SDK is the `com.sendflit:sendflit` artifact. It uses the JDK's built-in `HttpClient` and has no third-party dependencies. It requires Java 17 or later.
+
+<Info>
+Looking for another language? See the [SDK overview](/sdks/overview).
+</Info>
 
 ## Install
 
-<CodeGroup>
-```xml Maven
+Maven:
+
+```xml
 <dependency>
   <groupId>com.sendflit</groupId>
   <artifactId>sendflit</artifactId>
   <version>1.0.0</version>
 </dependency>
 ```
-```groovy Gradle
+
+Gradle:
+
+```groovy
 implementation 'com.sendflit:sendflit:1.0.0'
 ```
-</CodeGroup>
 
-Requires Java 17 or later. The SDK uses `java.net.http` and has no other dependencies.
+## Create a client
+
+Use the builder. Read your key from the environment.
+
+```java
+import com.sendflit.SendFlit;
+import java.time.Duration;
+
+SendFlit sf = SendFlit.builder(System.getenv("SENDFLIT_API_KEY"))
+    .timeout(Duration.ofSeconds(15))
+    .maxRetries(2)
+    .build();
+```
+
+The builder accepts these options:
+
+| Method | Default | What it does |
+|---|---|---|
+| `builder(apiKey)` | none, required | Your API key. Starts with `re_`. |
+| `baseUrl(url)` | `https://api.sendflit.com` | Change this only to point at a test or proxy server. |
+| `timeout(Duration)` | 15 seconds | How long a request may take. |
+| `maxRetries(n)` | `2` | Retries for `429` and `5xx` responses. |
 
 ## Send an email
+
+Build an `Email` with its builder, then pass it to `send`. `send` returns a `SendResult`.
+
+```java
+import com.sendflit.SendFlit.Email;
+import com.sendflit.SendFlit.SendResult;
+
+Email email = Email.builder()
+    .from("you@yourdomain.com")
+    .to("user@example.com")
+    .subject("Confirm your email")
+    .html("<p>Click <a href='https://app.example.com/confirm?t=abc'>here</a>.</p>")
+    .text("Confirm your email: https://app.example.com/confirm?t=abc")
+    .build();
+
+SendResult res = sf.send(email);
+System.out.println(res.id + " " + res.status);
+```
+
+Builder methods:
+
+| Method | Notes |
+|---|---|
+| `from(String)` | Required. Must use a verified domain. |
+| `to(String)` | Required. One address. |
+| `subject(String)` | Subject line. |
+| `html(String)`, `text(String)` | Body. Set one or both. |
+| `replyTo(String)` | Where replies go. |
+| `cc(List<String>)`, `bcc(List<String>)` | Extra recipients. |
+| `templateId(String)` | Send a stored template instead of `html`. |
+| `variables(Map<String,String>)` | Values for the template placeholders. |
+| `scheduledAt(String)` | An ISO 8601 date-time. |
+| `attach(filename, bytes, contentType)` | Adds an attachment. See [Attachments](#attachments). |
+
+## Attachments
+
+Use `attach`. It takes the file's bytes and base64-encodes them for you.
+
+```java
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+byte[] pdf = Files.readAllBytes(Path.of("receipt.pdf"));
+
+Email email = Email.builder()
+    .from("billing@yourdomain.com")
+    .to("user@example.com")
+    .subject("Your receipt")
+    .html("<p>Your receipt is attached.</p>")
+    .attach("receipt.pdf", pdf, "application/pdf")
+    .build();
+
+sf.send(email);
+```
+
+Limits:
+
+- Up to 10 attachments per message.
+- Up to 10 MB per attachment. Larger files are rejected with `422`.
+
+## Send a batch
+
+`batch` sends up to 100 emails in one request and returns a `List<SendResult>` in the same order as your input.
+
+```java
+List<Email> emails = List.of(
+    Email.builder().from("news@yourdomain.com").to("a@example.com").subject("Digest").html("<p>Hi A</p>").build(),
+    Email.builder().from("news@yourdomain.com").to("b@example.com").subject("Digest").html("<p>Hi B</p>").build()
+);
+
+List<SendResult> results = sf.batch(emails);
+```
+
+An empty list, or more than 100 emails, throws `IllegalArgumentException` before any request is made. See [Batch sending](/guides/batch-sending).
+
+<Warning>
+The Java SDK doesn't send an `Idempotency-Key` header yet, so a retried send can deliver twice. Check the earlier result before you retry. See [Idempotency](/guides/idempotency).
+</Warning>
+
+## Manage emails
+
+The Java SDK can list emails. It doesn't have methods to get or cancel a single email yet. Use `GET /v1/emails/{id}` or `DELETE /v1/emails/{id}` directly if you need them.
+
+```java
+Map<String, Object> page = sf.listEmails(20, 0, null);   // limit, offset, status
+```
+
+## Domains
+
+```java
+Map<String, Object> domain = sf.addDomain("yourdomain.com");
+System.out.println(domain.get("id"));
+
+Map<String, Object> all = sf.listDomains();
+
+// Run after the DNS records are live. Changes can take time to propagate.
+Map<String, Object> state = sf.verifyDomain((String) domain.get("id"));
+```
+
+You can send only from a verified domain. For DNS setup, see [Domains](/concepts/domains).
+
+## Suppressions
+
+```java
+sf.suppress("user@example.com", "unsubscribe");
+```
+
+See [Emails](/concepts/emails).
+
+## Usage
+
+```java
+Map<String, Object> usage = sf.usage();   // usage counts for your account
+```
+
+The Java SDK doesn't have a health method yet. Call `GET /health` directly if you need one.
+
+## Verify webhooks
+
+SendFlit signs each webhook. The `X-Sendflit-Signature` header carries `sha256=<hex>`, an HMAC-SHA256 of the raw request body. Pass the raw bytes to the static method.
 
 ```java
 import com.sendflit.SendFlit;
 
-SendFlit sf = SendFlit.builder("re_...").build();
+byte[] raw = exchange.getRequestBody().readAllBytes();   // the raw body, before any parsing
+String sig = exchange.getRequestHeaders().getFirst("X-Sendflit-Signature");
 
-SendFlit.SendResult res = sf.send(SendFlit.Email.builder()
-    .from("you@yourdomain.com")
-    .to("user@example.com")
-    .subject("Confirm your email")
-    .html("<p>Click <a href='...'>here</a>.</p>")
-    .build());
-System.out.println(res.id + " " + res.status);
+if (!SendFlit.verifyWebhookSignature(System.getenv("SENDFLIT_WEBHOOK_SECRET"), raw, sig)) {
+    exchange.sendResponseHeaders(401, -1);
+    return;
+}
+// parse raw and handle the event here
 ```
 
-## Attachments and batch send
+The comparison runs in constant time. See [Webhooks](/reference/webhooks) for the event list.
 
-Up to 10 attachments per message, 10 MB each. Up to 100 messages per batch.
+## Errors and retries
+
+Failed calls throw `SendFlit.SendFlitException`, a checked exception. It has two public fields:
+
+| Field | Meaning |
+|---|---|
+| `status` | The HTTP status code. `0` for a network failure. |
+| `body` | The raw response body, when the API returned one. |
 
 ```java
-SendFlit.Email.builder()
-    .from("billing@yourdomain.com").to("u@example.com").subject("Receipt")
-    .attach("receipt.pdf", pdfBytes, "application/pdf")
-    .build();
-
-sf.batch(List.of(emailA, emailB));
+try {
+    sf.send(email);
+} catch (SendFlit.SendFlitException e) {
+    if (e.status == 422) {
+        System.err.println("Invalid email: " + e.body);
+    } else {
+        throw new RuntimeException(e);
+    }
+}
 ```
 
-## Verify webhooks
+Requests that fail with `429` or `5xx` are retried up to `maxRetries` times. The SDK honors the `Retry-After` header when it's present. Other `4xx` responses are not retried. See [Errors, retries and limits](/reference/errors).
 
-See [Webhooks](/reference/webhooks) for the event list.
+## Method reference
 
-```java
-boolean ok = SendFlit.verifyWebhookSignature(secret, rawBytes, signatureHeader);
-```
+| Method | Endpoint | Returns |
+|---|---|---|
+| `send(Email)` | `POST /v1/email` | `SendResult` |
+| `batch(List<Email>)` | `POST /v1/emails/batch` | `List<SendResult>` |
+| `listEmails(limit, offset, status)` | `GET /v1/emails` | `Map<String, Object>` |
+| `addDomain(name)` | `POST /v1/domains` | `Map<String, Object>` |
+| `listDomains()` | `GET /v1/domains` | `Map<String, Object>` |
+| `verifyDomain(id)` | `POST /v1/domains/{id}/verify` | `Map<String, Object>` |
+| `suppress(email, reason)` | `POST /v1/suppressions` | `Map<String, Object>` |
+| `usage()` | `GET /v1/usage` | `Map<String, Object>` |
+| `SendFlit.verifyWebhookSignature(secret, rawBody, signature)` | none, local check | `boolean` |
 
-## Errors
+## Next steps
 
-Failed requests throw `SendFlit.SendFlitException`, with `.status` and `.body` fields. See [Errors, retries and limits](/reference/errors).
+- [Quickstart](/quickstart): send your first email from the command line.
+- [Batch sending](/guides/batch-sending): limits and per-item results.
+- [Webhooks](/reference/webhooks): events and payloads.

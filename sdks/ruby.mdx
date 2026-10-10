@@ -1,7 +1,13 @@
 ---
 title: "Ruby"
-description: "Send transactional email from Ruby with the sendflit gem. Standard library only."
+description: "Send transactional email from Ruby 2.7+ with the sendflit gem: keyword-argument sends, batch, domains, suppressions, errors and webhook verification."
 ---
+
+The Ruby SDK is the `sendflit` gem. It has no runtime dependencies and uses the standard library's `net/http`. It requires Ruby 2.7 or later.
+
+<Info>
+Looking for another language? See the [SDK overview](/sdks/overview).
+</Info>
 
 ## Install
 
@@ -15,41 +21,216 @@ Or add it to your `Gemfile`:
 gem "sendflit"
 ```
 
-## Send an email
+## Create a client
 
 ```ruby
 require "sendflit"
 
-sf = SendFlit.new(api_key: "re_...")
+sf = SendFlit.new(api_key: ENV.fetch("SENDFLIT_API_KEY"))
+```
 
+The constructor takes these keyword arguments:
+
+| Argument | Default | What it does |
+|---|---|---|
+| `api_key:` | none, required | Your API key. Starts with `re_`. An empty key raises `TypeError`. |
+| `base_url:` | `https://api.sendflit.com` | Change this only to point at a test or proxy server. |
+| `timeout:` | `15` | Seconds before a request is abandoned. |
+| `max_retries:` | `2` | Retries for `429` and `5xx` responses. |
+
+## Send an email
+
+`send` takes keyword arguments. The keys are the same as the API's fields.
+
+```ruby
 res = sf.send(
   from: "you@yourdomain.com",
   to: "user@example.com",
   subject: "Confirm your email",
-  html: "<p>Click <a href='...'>here</a>.</p>"
+  html: "<p>Click <a href='https://app.example.com/confirm?t=abc'>here</a>.</p>",
+  text: "Confirm your email: https://app.example.com/confirm?t=abc"
 )
+
 puts res["id"], res["status"]
 ```
 
-## Attachments and batch send
+`send` returns the response as a Hash with string keys. The `id` is what you use to look up or cancel the email later.
 
-Up to 10 attachments per message, 10 MB each. Up to 100 messages per batch.
+Keyword arguments you can pass:
+
+| Keyword | Type | Notes |
+|---|---|---|
+| `from:` | String | Required. Must use a verified domain. |
+| `to:` | String | Required. One address. |
+| `to_name:` | String | Display name for the recipient. |
+| `cc:`, `bcc:` | String or Array | Extra recipients. Single strings are wrapped in an array. |
+| `subject:` | String | Subject line. |
+| `html:`, `text:` | String | Body. Send one or both. |
+| `reply_to:` | String | Where replies go. |
+| `headers:` | Hash | Extra message headers. |
+| `template_id:`, `template_name:` | String | Send a stored template instead of `html`. |
+| `variables:` | Hash | Values for the template placeholders. |
+| `scheduled_at:` | String | An ISO 8601 date-time. |
+| `attachments:` | Array of Hash | See [Attachments](#attachments). |
+
+`nil` values are dropped before the request is sent.
+
+## Attachments
+
+Each attachment is a Hash with `filename:`, `content:` and an optional `content_type:`. The SDK base64-encodes `content` for you.
 
 ```ruby
-sf.send(from: "billing@yourdomain.com", to: "u@example.com", subject: "Receipt",
-        attachments: [{filename: "receipt.pdf", content: pdf_bytes}])
+sf.send(
+  from: "billing@yourdomain.com",
+  to: "user@example.com",
+  subject: "Your receipt",
+  html: "<p>Your receipt is attached.</p>",
+  attachments: [
+    {
+      filename: "receipt.pdf",
+      content: File.binread("receipt.pdf"),
+      content_type: "application/pdf"
+    }
+  ]
+)
+```
 
-sf.batch([{from: "you@yourdomain.com", to: "a@example.com", subject: "Hi", html: "<p>A</p>"}])
+Limits:
+
+- Up to 10 attachments per message.
+- Up to 10 MB per attachment. Larger files are rejected with `422`.
+
+## Batch sending
+
+`batch` sends up to 100 emails in one request. Pass an array of Hashes with the same keys as `send`.
+
+```ruby
+result = sf.batch([
+  { from: "news@yourdomain.com", to: "a@example.com", subject: "Digest", html: "<p>Hi A</p>" },
+  { from: "news@yourdomain.com", to: "b@example.com", subject: "Digest", html: "<p>Hi B</p>" }
+])
+
+result["results"].each { |item| puts item.inspect }
+```
+
+The response has a `results` array in the same order as your input, and a `count`. An empty array raises `TypeError`, and more than 100 emails raises `RangeError`, before any request is made. See [Batch sending](/guides/batch-sending).
+
+<Warning>
+The Ruby SDK doesn't send an `Idempotency-Key` header yet, so a retried send can deliver twice. Check the earlier result before you retry. See [Idempotency](/guides/idempotency).
+</Warning>
+
+## Manage emails
+
+```ruby
+page = sf.list_emails(limit: 20, offset: 0)   # page through recent emails
+email = sf.get_email("em_123")                # one email by id
+sf.cancel_email("em_123")                     # cancel while still scheduled
+```
+
+`cancel_email` removes an email that hasn't been sent yet. If the email was already sent, the API returns an error, which the SDK raises as `SendFlit::Error`.
+
+## Domains
+
+```ruby
+domain = sf.add_domain("yourdomain.com")
+puts domain["id"]
+
+sf.list_domains
+
+# Run after the DNS records are live. Changes can take time to propagate.
+sf.verify_domain(domain["id"])
+```
+
+You can send only from a verified domain. For DNS setup, see [Domains](/concepts/domains).
+
+## Suppressions
+
+```ruby
+sf.suppress("user@example.com", reason: "unsubscribe")
+```
+
+`reason:` is optional and defaults to `"unsubscribe"`. See [Emails](/concepts/emails).
+
+## Usage and health
+
+```ruby
+sf.usage   # usage counts for your account
+sf.health  # calls GET /health, which doesn't need a valid key
 ```
 
 ## Verify webhooks
 
-See [Webhooks](/reference/webhooks) for the event list.
+SendFlit signs each webhook. The `X-Sendflit-Signature` header carries `sha256=<hex>`, an HMAC-SHA256 of the raw body. Use the class method to check it.
 
 ```ruby
-SendFlit.verify_webhook_signature(SECRET, raw_body, env["HTTP_X_SENDFLIT_SIGNATURE"])
+require "sinatra"
+require "sendflit"
+
+post "/webhooks/sendflit" do
+  raw = request.body.read   # the raw body, before any parsing
+  unless SendFlit.verify_webhook_signature(
+    ENV.fetch("SENDFLIT_WEBHOOK_SECRET"),
+    raw,
+    request.env["HTTP_X_SENDFLIT_SIGNATURE"]
+  )
+    halt 401
+  end
+
+  event = JSON.parse(raw)
+  # handle event["type"] here
+  status 200
+end
 ```
 
-## Errors
+The comparison uses `OpenSSL.secure_compare`, which runs in constant time. See [Webhooks](/reference/webhooks) for the event list.
 
-Failed requests raise `SendFlit::Error`, with `.status` and `.body` attributes. See [Errors, retries and limits](/reference/errors).
+## Errors and retries
+
+Every failed request raises `SendFlit::Error`:
+
+| Method | Meaning |
+|---|---|
+| `message` | A short description. |
+| `status` | The HTTP status code. |
+| `body` | The parsed response body, when the API returned one. |
+
+Network problems and timeouts aren't wrapped. They raise the standard Ruby exceptions, such as `Net::OpenTimeout`, `Net::ReadTimeout` or `SocketError`.
+
+```ruby
+begin
+  sf.send(from: "you@yourdomain.com", to: "user@example.com", subject: "Hi", html: "<p>Hi</p>")
+rescue SendFlit::Error => e
+  if e.status == 422
+    warn "Invalid email: #{e.body.inspect}"
+  else
+    raise
+  end
+rescue Net::OpenTimeout, Net::ReadTimeout, SocketError => e
+  warn "Network problem: #{e.message}. The email may already have been sent, so check before you retry."
+end
+```
+
+Requests that fail with `429` or `5xx` are retried up to `max_retries` times. Other `4xx` responses are not retried. See [Errors, retries and limits](/reference/errors).
+
+## Method reference
+
+| Method | Endpoint | Returns |
+|---|---|---|
+| `send(**email)` | `POST /v1/email` | Hash |
+| `batch(emails)` | `POST /v1/emails/batch` | Hash with `results` and `count` |
+| `list_emails(limit:, offset:, status:)` | `GET /v1/emails` | Hash |
+| `get_email(id)` | `GET /v1/emails/{id}` | Hash |
+| `cancel_email(id)` | `DELETE /v1/emails/{id}` | Hash |
+| `add_domain(name)` | `POST /v1/domains` | Hash |
+| `list_domains` | `GET /v1/domains` | Hash |
+| `verify_domain(id)` | `POST /v1/domains/{id}/verify` | Hash |
+| `suppress(email, reason:)` | `POST /v1/suppressions` | Hash |
+| `usage` | `GET /v1/usage` | Hash |
+| `health` | `GET /health` | Hash |
+| `SendFlit.verify_webhook_signature(secret, raw_body, signature)` | none, local check | `true` or `false` |
+
+## Next steps
+
+- [Quickstart](/quickstart): send your first email from the command line.
+- [Batch sending](/guides/batch-sending): limits and per-item results.
+- [Webhooks](/reference/webhooks): events and payloads.

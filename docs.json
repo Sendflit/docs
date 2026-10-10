@@ -17,73 +17,94 @@
     }
   },
   "navigation": {
-    "groups": [
+    "tabs": [
       {
-        "group": "Get started",
-        "pages": [
-          "index",
-          "quickstart"
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "index",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core concepts",
+            "pages": [
+              "concepts/domains",
+              "concepts/api-keys",
+              "concepts/emails"
+            ]
+          },
+          {
+            "group": "Tutorials",
+            "pages": [
+              "tutorials/node-welcome-email",
+              "tutorials/handle-bounces",
+              "tutorials/react-email-template",
+              "tutorials/ai-agent-mcp"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/signup-forms",
+              "guides/idempotency",
+              "guides/batch-sending",
+              "guides/smtp",
+              "guides/switching-from-resend",
+              "guides/mcp-server"
+            ]
+          }
         ]
       },
       {
-        "group": "Core concepts",
-        "pages": [
-          "concepts/domains",
-          "concepts/api-keys",
-          "concepts/emails"
+        "tab": "SDKs",
+        "groups": [
+          {
+            "group": "SDKs",
+            "pages": [
+              "sdks/overview",
+              "sdks/node",
+              "sdks/python",
+              "sdks/go",
+              "sdks/ruby",
+              "sdks/php",
+              "sdks/java",
+              "sdks/dotnet"
+            ]
+          },
+          {
+            "group": "Email templates",
+            "pages": [
+              "sdks/templates/react-email"
+            ]
+          }
         ]
       },
       {
-        "group": "Tutorials",
-        "pages": [
-          "tutorials/node-welcome-email",
-          "tutorials/handle-bounces",
-          "tutorials/react-email-template",
-          "tutorials/ai-agent-mcp"
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/api-overview",
+              "reference/errors",
+              "reference/webhooks",
+              "reference/security",
+              "reference/changelog"
+            ]
+          }
         ]
       },
       {
-        "group": "Guides",
-        "pages": [
-          "guides/signup-forms",
-          "guides/idempotency",
-          "guides/batch-sending",
-          "guides/smtp",
-          "guides/switching-from-resend",
-          "guides/mcp-server"
+        "tab": "API reference",
+        "groups": [
+          {
+            "group": "API reference",
+            "openapi": "openapi/openapi-v1.json"
+          }
         ]
-      },
-      {
-        "group": "SDKs",
-        "pages": [
-          "sdks/node",
-          "sdks/python",
-          "sdks/go",
-          "sdks/ruby",
-          "sdks/php",
-          "sdks/java",
-          "sdks/dotnet"
-        ]
-      },
-      {
-        "group": "Email templates",
-        "pages": [
-          "sdks/templates/react-email"
-        ]
-      },
-      {
-        "group": "Reference",
-        "pages": [
-          "reference/api-overview",
-          "reference/errors",
-          "reference/webhooks",
-          "reference/security",
-          "reference/changelog"
-        ]
-      },
-      {
-        "group": "API reference",
-        "openapi": "openapi/openapi-v1.json"
       }
     ]
   }

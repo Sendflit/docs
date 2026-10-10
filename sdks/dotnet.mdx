@@ -1,7 +1,13 @@
 ---
 title: ".NET"
-description: "Send transactional email from .NET 6+ with the SendFlit NuGet package."
+description: "Send transactional email from .NET 6+ with the SendFlit NuGet package: async sends, batch, attachments, domains, suppressions, errors and webhook verification."
 ---
+
+The .NET SDK is the `SendFlit` NuGet package. It uses `System.Text.Json` and `HttpClient`, has no other dependencies, and targets .NET 6, 7 and 8.
+
+<Info>
+Looking for another language? See the [SDK overview](/sdks/overview).
+</Info>
 
 ## Install
 
@@ -9,44 +15,205 @@ description: "Send transactional email from .NET 6+ with the SendFlit NuGet pack
 dotnet add package SendFlit
 ```
 
-Requires .NET 6 or later. The SDK uses `System.Text.Json` and `HttpClient`, with no other dependencies.
-
-## Send an email
+## Create a client
 
 ```csharp
 using SendFlit;
 
-await using var sf = new Client("re_...");
+using var sf = new Client(Environment.GetEnvironmentVariable("SENDFLIT_API_KEY")!);
+```
 
+The constructor takes these arguments:
+
+| Argument | Default | What it does |
+|---|---|---|
+| `apiKey` | none, required | Your API key. Starts with `re_`. An empty key throws `ArgumentException`. |
+| `baseUrl` | `https://api.sendflit.com` | Change this only to point at a test or proxy server. |
+| `timeoutSeconds` | `15` | Seconds before a request is abandoned. |
+| `maxRetries` | `2` | Retries for `429` and `5xx` responses. |
+
+`Client` implements `IDisposable`. Dispose it when you're done, or create one client and reuse it for the life of your app.
+
+## Send an email
+
+`SendAsync` takes an `Email` and returns a `SendResult`.
+
+```csharp
 var res = await sf.SendAsync(new Email
 {
     From = "you@yourdomain.com",
     To = "user@example.com",
     Subject = "Confirm your email",
-    Html = "<p>Click <a href='...'>here</a>.</p>",
+    Html = "<p>Click <a href='https://app.example.com/confirm?t=abc'>here</a>.</p>",
+    Text = "Confirm your email: https://app.example.com/confirm?t=abc",
 });
+
 Console.WriteLine($"{res.Id} {res.Status}");
 ```
 
-## Attachments and batch send
+Properties on `Email`:
 
-Up to 10 attachments per message, 10 MB each. Up to 100 messages per batch.
+| Property | Type | Notes |
+|---|---|---|
+| `From` | string | Required. Must use a verified domain. |
+| `To` | string | Required. One address. |
+| `ToName` | string? | Display name for the recipient. |
+| `Cc`, `Bcc` | List&lt;string&gt;? | Extra recipients. |
+| `Subject` | string? | Subject line. |
+| `Html`, `Text` | string? | Body. Send one or both. |
+| `ReplyTo` | string? | Where replies go. |
+| `Headers` | Dictionary&lt;string, string&gt;? | Extra message headers. |
+| `ScheduledAt` | string? | An ISO 8601 date-time. |
+| `TemplateId`, `TemplateName` | string? | Send a stored template instead of `Html`. |
+| `Variables` | Dictionary&lt;string, string&gt;? | Values for the template placeholders. |
+| `Attachments` | List&lt;Attachment&gt;? | See [Attachments](#attachments). |
+
+`SendResult` has `Id`, `Status`, and `To`.
+
+## Attachments
+
+Use `Attach`. For text, pass a string. For binary data, pass a byte array and a content type. The SDK base64-encodes the content for you.
 
 ```csharp
-var email = new Email { From = "billing@yourdomain.com", To = "u@example.com", Subject = "Receipt" };
-email.Attach("receipt.pdf", pdfBytes, "application/pdf");
+var email = new Email
+{
+    From = "billing@yourdomain.com",
+    To = "user@example.com",
+    Subject = "Your receipt",
+    Html = "<p>Your receipt is attached.</p>",
+};
 
-await sf.BatchAsync(new List<Email> { emailA, emailB });
+email.Attach("receipt.pdf", await File.ReadAllBytesAsync("receipt.pdf"), "application/pdf");
+email.Attach("notes.txt", "Thanks for your order.", "text/plain");
+
+await sf.SendAsync(email);
 ```
+
+Limits:
+
+- Up to 10 attachments per message.
+- Up to 10 MB per attachment. Larger files are rejected with `422`.
+
+## Send a batch
+
+`BatchAsync` sends up to 100 emails in one request and returns a `List<SendResult>` in the same order as your input.
+
+```csharp
+var results = await sf.BatchAsync(new List<Email>
+{
+    new() { From = "news@yourdomain.com", To = "a@example.com", Subject = "Digest", Html = "<p>Hi A</p>" },
+    new() { From = "news@yourdomain.com", To = "b@example.com", Subject = "Digest", Html = "<p>Hi B</p>" },
+});
+```
+
+An empty list, or more than 100 emails, throws `ArgumentException` or `ArgumentOutOfRangeException` before any request is made. See [Batch sending](/guides/batch-sending).
+
+<Warning>
+The .NET SDK doesn't send an `Idempotency-Key` header yet, so a retried send can deliver twice. Check the earlier result before you retry. See [Idempotency](/guides/idempotency).
+</Warning>
+
+## Manage emails
+
+The .NET SDK can list emails. It doesn't have methods to get or cancel a single email yet. Use `GET /v1/emails/{id}` or `DELETE /v1/emails/{id}` directly if you need them.
+
+```csharp
+var page = await sf.ListEmailsAsync(limit: 20, offset: 0);   // returns a JsonElement
+```
+
+## Domains
+
+```csharp
+var domain = await sf.AddDomainAsync("yourdomain.com");   // returns a JsonElement
+Console.WriteLine(domain.GetProperty("id").GetString());
+
+var all = await sf.ListDomainsAsync();
+
+// Run after the DNS records are live. Changes can take time to propagate.
+var state = await sf.VerifyDomainAsync(domain.GetProperty("id").GetString()!);
+```
+
+You can send only from a verified domain. For DNS setup, see [Domains](/concepts/domains).
+
+## Suppressions
+
+```csharp
+await sf.SuppressAsync("user@example.com", "unsubscribe");
+```
+
+The second argument is optional and defaults to `"unsubscribe"`. See [Emails](/concepts/emails).
+
+## Usage
+
+```csharp
+var usage = await sf.UsageAsync();   // usage counts for your account, as a JsonElement
+```
+
+The .NET SDK doesn't have a health method yet. Call `GET /health` directly if you need one.
 
 ## Verify webhooks
 
-See [Webhooks](/reference/webhooks) for the event list.
+SendFlit signs each webhook. The `X-Sendflit-Signature` header carries `sha256=<hex>`, an HMAC-SHA256 of the raw request body. Pass the raw bytes to the static method.
 
 ```csharp
-bool ok = Client.VerifyWebhookSignature(secret, rawBody, signatureHeader);
+using SendFlit;
+
+// Read the raw body before anything parses it.
+using var buffer = new MemoryStream();
+await Request.Body.CopyToAsync(buffer);
+var raw = buffer.ToArray();
+
+var ok = Client.VerifyWebhookSignature(
+    Environment.GetEnvironmentVariable("SENDFLIT_WEBHOOK_SECRET")!,
+    raw,
+    Request.Headers["X-Sendflit-Signature"].ToString());
+
+if (!ok)
+{
+    return Results.StatusCode(401);
+}
+// parse raw and handle the event here
 ```
 
-## Async and errors
+The comparison runs in constant time. See [Webhooks](/reference/webhooks) for the event list.
 
-Every call is async and takes a `CancellationToken`. Failed requests throw `SendFlitException`, with `.Status` and `.Body` properties. See [Errors, retries and limits](/reference/errors).
+## Errors and retries
+
+Failed calls throw `SendFlitException`, which has two properties:
+
+| Property | Meaning |
+|---|---|
+| `Status` | The HTTP status code. `0` for a network failure. |
+| `Body` | The raw response body, when the API returned one. |
+
+```csharp
+try
+{
+    await sf.SendAsync(email);
+}
+catch (SendFlitException e) when (e.Status == 422)
+{
+    Console.Error.WriteLine($"Invalid email: {e.Body}");
+}
+```
+
+Requests that fail with `429` or `5xx` are retried up to `maxRetries` times. The SDK honors the `Retry-After` header when it's present. Other `4xx` responses are not retried. See [Errors, retries and limits](/reference/errors).
+
+## Method reference
+
+| Method | Endpoint | Returns |
+|---|---|---|
+| `SendAsync(Email)` | `POST /v1/email` | `SendResult` |
+| `BatchAsync(List<Email>)` | `POST /v1/emails/batch` | `List<SendResult>` |
+| `ListEmailsAsync(limit, offset, status)` | `GET /v1/emails` | `JsonElement` |
+| `AddDomainAsync(name)` | `POST /v1/domains` | `JsonElement` |
+| `ListDomainsAsync()` | `GET /v1/domains` | `JsonElement` |
+| `VerifyDomainAsync(id)` | `POST /v1/domains/{id}/verify` | `JsonElement` |
+| `SuppressAsync(email, reason)` | `POST /v1/suppressions` | `JsonElement` |
+| `UsageAsync()` | `GET /v1/usage` | `JsonElement` |
+| `Client.VerifyWebhookSignature(secret, rawBody, signature)` | none, local check | `bool` |
+
+## Next steps
+
+- [Quickstart](/quickstart): send your first email from the command line.
+- [Batch sending](/guides/batch-sending): limits and per-item results.
+- [Webhooks](/reference/webhooks): events and payloads.
