@@ -54,7 +54,7 @@ Pass an ISO 8601 timestamp as `scheduled_at`:
 
 Relative times such as "in one hour" aren't supported. Compute the timestamp in your code.
 
-To cancel before it sends, use `POST /v1/emails/{id}/cancel` or `DELETE /v1/emails/{id}`. To move it, use `PATCH /v1/emails/{id}`.
+To cancel a scheduled email before it sends, use `DELETE /v1/emails/{id}`. The native API doesn't change a scheduled time; cancel it and send a new email. The [Resend-compatible API](/guides/switching-from-resend) also supports rescheduling.
 
 ## Recipients and content
 

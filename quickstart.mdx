@@ -43,23 +43,61 @@ Store the key in an environment variable or secret manager, never in source code
 
 ## 3. Send your first email
 
-Using the API directly:
+<Tabs>
+  <Tab title="API">
+    ```bash
+    curl -X POST https://api.sendflit.com/v1/email \
+      -H "Authorization: Bearer $SENDFLIT_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "from": "hello@yourdomain.com",
+        "to": "you@example.com",
+        "subject": "Hello from SendFlit",
+        "html": "<p>It works.</p>"
+      }'
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ```js
+    import SendFlit from "@sendflit/sdk";
 
-```bash
-curl -X POST https://api.sendflit.com/v1/email \
-  -H "Authorization: Bearer $SENDFLIT_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "from": "hello@yourdomain.com",
-    "to": "you@example.com",
-    "subject": "Hello from SendFlit",
-    "html": "<p>It works.</p>"
-  }'
-```
+    const sendflit = new SendFlit({ apiKey: process.env.SENDFLIT_API_KEY });
+    const { id } = await sendflit.send({
+      from: "hello@yourdomain.com",
+      to: "you@example.com",
+      subject: "Hello from SendFlit",
+      html: "<p>It works.</p>",
+    });
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from sendflit import SendFlit
 
-A successful response includes the email `id`. Save it so you can check delivery.
+    sf = SendFlit(api_key=os.environ["SENDFLIT_API_KEY"])
+    res = sf.send(
+        from_="hello@yourdomain.com",
+        to="you@example.com",
+        subject="Hello from SendFlit",
+        html="<p>It works.</p>",
+    )
+    print(res["id"])
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```go
+    sfl := sendflit.New(os.Getenv("SENDFLIT_API_KEY"))
+    res, err := sfl.Send(ctx, sendflit.Email{
+        From:    "hello@yourdomain.com",
+        To:      "you@example.com",
+        Subject: "Hello from SendFlit",
+        HTML:    "<p>It works.</p>",
+    })
+    ```
+  </Tab>
+</Tabs>
 
-Or use an SDK: [Node.js](/sdks/node), [Python](/sdks/python), [Go](/sdks/go), [Ruby](/sdks/ruby), [PHP](/sdks/php), [Java](/sdks/java), or [.NET](/sdks/dotnet).
+A successful response includes the email `id`. Save it so you can check delivery. The Ruby, PHP, Java, and .NET SDKs have the same shape: see their [SDK pages](/sdks/node).
 
 ## 4. Check delivery
 

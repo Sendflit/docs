@@ -1,0 +1,60 @@
+---
+title: "Sign-up forms"
+description: "Build a sign-up form for your website, customise its look and questions, and understand how signups reach your contacts."
+---
+
+A sign-up form adds people to an audience and, optionally, to a mailing list. Each form has a hosted page you can share, and an embed snippet for your website.
+
+## Create a form
+
+1. Open **Forms** in the dashboard and create a form.
+2. Choose the audience and, optionally, a mailing list.
+3. Turn on **double opt-in** to send a confirmation link first. We add people once they click it. Recommended for newsletters.
+4. Customise the look and the questions, then copy the embed code or share the hosted page.
+
+## Customise the look
+
+- **Layout:** the button below the fields, or beside them.
+- **Button text and colour**, the placeholder text, and the font.
+- **Corners:** square, rounded, more rounded, or pill.
+- **Name:** ask for the person's name as well as their email.
+- **After signup:** a thank-you message, or a redirect to a page on your site.
+- **Hosted page:** a heading and description for the shared link.
+
+## Ask extra questions
+
+Add up to 8 questions after the email field. Each one is one of:
+
+| Type | Shows as | Stored as |
+|---|---|---|
+| Short text | A text box | Text |
+| Phone | A phone box, checked for a plausible number | Text |
+| Dropdown | A menu with the options you list (up to 20) | The chosen option |
+| Checkbox | A tick box, optional or required | `true` or `false` |
+
+Mark a question required to stop submissions without it. Answers are saved on the contact as properties, under the question's key, so you can use them in segments and automations.
+
+Each question gets a key when you add it, such as `question_1`. The key stays the same if you rename the question, so existing answers keep matching. Keys use lowercase letters, digits, and underscores. `email`, `name`, and `website` are reserved.
+
+With double opt-in, the answers are carried through the confirmation link. They're saved once the person confirms.
+
+## Embed on your website
+
+Paste the snippet where you want the form. It contains only HTML and inline styles, with no scripts, so it works on any site and doesn't slow your pages.
+
+```html
+<form action="<your form URL>" method="post">
+  <input type="email" name="email" required>
+  <button type="submit">Subscribe</button>
+</form>
+```
+
+Your copied snippet includes the look you chose, plus any questions.
+
+## Spam protection
+
+Each form has a hidden field that bots fill in and people don't see. Submissions from one address or IP address are rate limited.
+
+## Pausing a form
+
+A form is paused automatically when its domain isn't verified and double opt-in is on, because we can't send the confirmation. Verify a sending domain to resume. See [Domains](/concepts/domains).

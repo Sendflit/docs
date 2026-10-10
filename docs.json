@@ -45,6 +45,7 @@
       {
         "group": "Guides",
         "pages": [
+          "guides/signup-forms",
           "guides/idempotency",
           "guides/batch-sending",
           "guides/smtp",
@@ -79,6 +80,10 @@
           "reference/security",
           "reference/changelog"
         ]
+      },
+      {
+        "group": "API reference",
+        "openapi": "openapi/openapi-v1.json"
       }
     ]
   }

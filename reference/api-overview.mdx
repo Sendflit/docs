@@ -39,9 +39,7 @@ A request with a missing, invalid or revoked key returns `401`. A request with a
 | `POST` | `/v1/emails/batch` | Send up to 100 emails. Supports `Idempotency-Key`. Returns a result per message. |
 | `GET` | `/v1/emails` | List emails. |
 | `GET` | `/v1/emails/{id}` | Get one email and its delivery status. |
-| `PATCH` | `/v1/emails/{id}` | Update a scheduled email. |
-| `POST` | `/v1/emails/{id}/cancel` | Cancel a scheduled email. |
-| `DELETE` | `/v1/emails/{id}` | Cancel a scheduled email. |
+| `DELETE` | `/v1/emails/{id}` | Cancel a scheduled email before it sends. |
 
 ### Domains
 
@@ -49,7 +47,10 @@ A request with a missing, invalid or revoked key returns `401`. A request with a
 |---|---|---|
 | `POST` | `/v1/domains` | Register a sending domain. Returns the DNS records to publish. |
 | `GET` | `/v1/domains` | List domains. |
-| `GET` | `/v1/domains/{id}` | Get one domain. |
+| `PUT` | `/v1/domains/{id}` | Update a domain. |
+| `GET` | `/v1/domains/{id}/records` | The DNS records to publish for a domain. |
+| `GET` | `/v1/domains/{id}/deliverability` | Deliverability status for a domain. |
+| `POST` | `/v1/domains/{id}/configure-dns` | Publish the records through connected AWS credentials (Route 53). |
 | `POST` | `/v1/domains/{id}/verify` | Check the DNS records and verify the domain. |
 
 ### Keys, webhooks and usage

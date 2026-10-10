@@ -48,7 +48,8 @@ If your DNS is in Amazon Route 53, you can connect AWS credentials once in the d
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/v1/domains` | List your domains. |
-| `GET` | `/v1/domains/{id}` | Get one domain and its verification state. |
+| `GET` | `/v1/domains/{id}/records` | The DNS records to publish for one domain. |
+| `GET` | `/v1/domains/{id}/deliverability` | Deliverability status for one domain. |
 | `POST` | `/v1/domains/{id}/verify` | Check DNS and verify. |
 
 ## Subdomains
