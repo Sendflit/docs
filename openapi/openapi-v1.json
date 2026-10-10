@@ -323,7 +323,7 @@
     "/v1/domains/{domain_id}/deliverability": {
       "get": {
         "summary": "Domain Deliverability",
-        "description": "A 0-100 deliverability score with the specific, actionable reasons\nbehind it \u2014 see app/deliverability.py.",
+        "description": "A 0-100 deliverability score with the specific, actionable reasons\nbehind it.",
         "operationId": "domain_deliverability_v1_domains__domain_id__deliverability_get",
         "security": [
           {
@@ -366,7 +366,7 @@
     "/v1/domains/{domain_id}/deliverability/assistant": {
       "get": {
         "summary": "Domain Deliverability Assistant",
-        "description": "The same score, read by the AI layer into a one-paragraph plain-\nlanguage explanation and a single prioritized next step \u2014 for someone\nwho wants \"what do I actually do\" rather than a checklist.",
+        "description": "The same score, read by the AI layer into a one-paragraph plain-\nlanguage explanation and a single prioritized next step — for someone\nwho wants \"what do I actually do\" rather than a checklist.",
         "operationId": "domain_deliverability_assistant_v1_domains__domain_id__deliverability_assistant_get",
         "security": [
           {
@@ -538,53 +538,10 @@
         ]
       }
     },
-    "/v1/domains/{domain_id}/configure-dns": {
-      "post": {
-        "summary": "Configure Domain Dns Route",
-        "description": "One-click: upsert SPF+DKIM+DMARC into the domain's Route 53 zone.",
-        "operationId": "configure_domain_dns_route_v1_domains__domain_id__configure_dns_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "domain_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Domain Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/email": {
       "post": {
         "summary": "Send",
-        "description": "Send one email. Pass an `Idempotency-Key` header on retry-sensitive\ncalls: retrying the exact same request with the same key replays the\noriginal result (including a prior failure) instead of sending twice \u2014\nreusing the key with a different body is rejected as a client error.\nSee app/idempotency.py.",
+        "description": "Send one email. Pass an `Idempotency-Key` header on retry-sensitive\ncalls: retrying the exact same request with the same key replays the\noriginal result (including a prior failure) instead of sending twice. Reusing the key with a different body is rejected as a client error.",
         "operationId": "send_v1_email_post",
         "security": [
           {
@@ -644,7 +601,7 @@
     "/v1/emails/batch": {
       "post": {
         "summary": "Send Batch",
-        "description": "Send up to 100 emails in one call. The `Idempotency-Key` header (see\n/email above) covers the whole batch \u2014 retrying the same batch with the\nsame key replays the original per-item results rather than resending.",
+        "description": "Send up to 100 emails in one call. The `Idempotency-Key` header (see\n/email above) covers the whole batch — retrying the same batch with the\nsame key replays the original per-item results rather than resending.",
         "operationId": "send_batch_v1_emails_batch_post",
         "security": [
           {
@@ -1441,29 +1398,6 @@
           "action"
         ],
         "title": "AutomationStep"
-      },
-      "AwsCredsIn": {
-        "properties": {
-          "access_key_id": {
-            "type": "string",
-            "title": "Access Key Id"
-          },
-          "secret_access_key": {
-            "type": "string",
-            "title": "Secret Access Key"
-          },
-          "region": {
-            "type": "string",
-            "title": "Region",
-            "default": "us-east-1"
-          }
-        },
-        "type": "object",
-        "required": [
-          "access_key_id",
-          "secret_access_key"
-        ],
-        "title": "AwsCredsIn"
       },
       "BatchIn": {
         "properties": {
