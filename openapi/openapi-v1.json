@@ -409,7 +409,7 @@
     "/v1/domains/{domain_id}/verify": {
       "post": {
         "summary": "Verify Domain",
-        "description": "`recheck=true` is the Verify button itself (not the page's own\npolling): also asks SES to look at the Return-Path records again now.",
+        "description": "`recheck=true` is the Verify button itself (not the page's own\npolling): also asks the mail provider to look at the Return-Path records again now.",
         "operationId": "verify_domain_v1_domains__domain_id__verify_post",
         "security": [
           {
