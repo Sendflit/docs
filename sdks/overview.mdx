@@ -1,0 +1,68 @@
+---
+title: "SDK overview"
+description: "Install a SendFlit SDK for Node.js, Python, Go, Ruby, PHP, Java or .NET, and see which methods each one provides."
+---
+
+SendFlit has official SDKs for seven languages. Each one wraps the same [v1 REST API](/reference/api-overview), so the concepts are the same everywhere: an API key, an email object with `from`, `to` and `subject`, safe retries with an idempotency key, and errors that carry the HTTP status and response body.
+
+Pick your language below. Every SDK page follows the same order, so you can switch languages without relearning the layout.
+
+## Choose an SDK
+
+| Language | Package | Install | Minimum version |
+|---|---|---|---|
+| Node.js | `@sendflit/sdk` | `npm install @sendflit/sdk` | Node 18 |
+| Python | `sendflit` | `pip install sendflit` | Python 3.9 |
+| Go | `github.com/Sendflit/sendflit-go` | `go get github.com/Sendflit/sendflit-go` | Go 1.21 |
+| Ruby | `sendflit` | `gem install sendflit` | Ruby 2.7 |
+| PHP | `sendflit/sendflit` | `composer require sendflit/sendflit` | PHP 7.4 |
+| Java | `com.sendflit:sendflit` | Maven or Gradle, see the [Java page](/sdks/java) | Java 17 |
+| .NET | `SendFlit` | `dotnet add package SendFlit` | .NET 6 |
+
+<Note>
+If an install command can't find the package, the first release isn't live in that registry yet. Check the SDK's repository under [github.com/Sendflit](https://github.com/Sendflit) for the current status.
+</Note>
+
+## Method coverage
+
+Every SDK sends email. Management methods vary a little by language, because each SDK covers the parts of the API its users most often need. Check the table before you write code, and see the method reference at the bottom of each SDK page.
+
+| Capability | Node.js | Python | Go | Ruby | PHP | Java | .NET |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Send one email | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Idempotency keys | Yes | Yes | No | No | No | No | No |
+| Batch send (up to 100) | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| List emails | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Get or cancel one email | Yes | Yes | No | Yes | Yes | No | No |
+| Add, list and verify domains | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Suppress an address | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Usage | Yes | Yes | No | Yes | Yes | Yes | Yes |
+| Health check | Yes | Yes | Yes | Yes | Yes | No | No |
+| Verify webhook signatures | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+
+If you need a capability marked "No", call the REST endpoint directly. The [API reference](/reference/api-overview) lists every endpoint with its request and response shapes.
+
+## What every SDK does for you
+
+- **Authentication.** Each request sends your key as `Authorization: Bearer re_...`.
+- **Retries.** Requests that fail with `429` or a `5xx` status are retried with backoff. The default is 2 retries. See [Errors, retries and limits](/reference/errors).
+- **Timeouts.** Each request stops after 15 seconds by default. Set a different value when you create the client.
+- **Errors.** A failed request raises an exception that carries the HTTP status and the parsed response body.
+- **Webhook verification.** Each SDK checks the `X-Sendflit-Signature` header against the raw request body. See [Webhooks](/reference/webhooks).
+
+## Keep your key out of code
+
+Read the key from an environment variable, such as `SENDFLIT_API_KEY`, and never commit it to source control. Use a separate key for each environment and give each key the smallest scope it needs. See [API keys](/concepts/api-keys).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Node.js" icon="js" href="/sdks/node">Install, send and verify webhooks in Node.js.</Card>
+  <Card title="Python" icon="python" href="/sdks/python">Synchronous client with keyword arguments.</Card>
+  <Card title="Go" icon="golang" href="/sdks/go">Context-aware client with typed structs.</Card>
+  <Card title="Ruby" icon="gem" href="/sdks/ruby">Keyword-argument client for Ruby 2.7 and later.</Card>
+  <Card title="PHP" icon="php" href="/sdks/php">Array-based client for PHP 7.4 and later.</Card>
+  <Card title="Java" icon="java" href="/sdks/java">Builder-based client for Java 17 and later.</Card>
+  <Card title=".NET" icon="microsoft" href="/sdks/dotnet">Async client for .NET 6 and later.</Card>
+  <Card title="React Email" icon="react" href="/sdks/templates/react-email">Build email templates with React components.</Card>
+</CardGroup>

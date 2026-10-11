@@ -1,0 +1,44 @@
+---
+title: "API keys and scopes"
+description: "Create, scope, rotate and revoke SendFlit API keys."
+---
+
+An API key authenticates every request. Keys look like `re_...`. Each key has a scope that limits what it can do, so give each service its own key with the smallest scope it needs.
+
+## Scopes
+
+| Scope | Can do | Typical use |
+|---|---|---|
+| `full` | Everything, including key and domain management. | Admin tools and infrastructure setup. |
+| `sending` | Send email and read its delivery status. | Application servers and SMTP. |
+| `read` | Read-only. Cannot send. | Dashboards, reporting, and audits. |
+
+A request with a valid key that lacks the scope for the action returns `403`.
+
+## Create a key
+
+Create a key in the dashboard. The key is shown once. SendFlit stores only a SHA-256 hash, so a lost key can't be recovered. Create a new one instead.
+
+## Rotate a key
+
+<Steps>
+  <Step title="Create a replacement">Create a new key with the same scope in the dashboard.</Step>
+  <Step title="Deploy it">Update your secret store and roll out the new key.</Step>
+  <Step title="Revoke the old key">
+    ```bash
+    curl -X DELETE https://api.sendflit.com/v1/keys/<key_id> \
+      -H "Authorization: Bearer $SENDFLIT_KEY"
+    ```
+    Revocation takes effect immediately, so make sure nothing still uses the old key.
+  </Step>
+</Steps>
+
+## Store keys safely
+
+- Keep keys in environment variables or a secrets manager.
+- Never put keys in source code, client-side code, mobile apps, or logs.
+- Use separate keys for each environment, such as staging and production.
+
+## Agent keys
+
+Keys used by AI agents can also have limits, and the dashboard can require approval for certain actions. An agent can't do more through the [MCP server](/guides/mcp-server) than its key can do over HTTP.

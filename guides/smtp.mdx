@@ -1,0 +1,49 @@
+---
+title: "SMTP relay"
+description: "Send email through SendFlit from any app or server that can only speak SMTP."
+---
+
+Use the SMTP relay when your app, framework, or hosting platform can send mail only over SMTP. The relay accepts standard SMTP and sends each message through the SendFlit API, so domain verification, suppressions, quotas, rate limits, and key scopes apply exactly as they do to API sends.
+
+## Connection settings
+
+| Setting | Value |
+|---|---|
+| Host | `smtp.sendflit.com` |
+| Port | `587` or `2525` with STARTTLS, or `465` with implicit TLS |
+| Username | `sendflit` (any value is accepted) |
+| Password | A SendFlit API key with `full` or `sending` scope |
+| Authentication | Required. Authentication happens over TLS only. |
+
+Use an API key with the `sending` scope for SMTP. Keys with the `read` scope can't send.
+
+<Warning>
+The relay refuses repeated failed logins from one address for a while. Check the password if you see authentication errors.
+</Warning>
+
+## Example: Python
+
+```python
+import smtplib
+from email.message import EmailMessage
+
+msg = EmailMessage()
+msg["From"] = "hello@yourdomain.com"
+msg["To"] = "user@example.com"
+msg["Subject"] = "Welcome"
+msg.set_content("Thanks for signing up.")
+
+with smtplib.SMTP("smtp.sendflit.com", 587) as smtp:
+    smtp.starttls()
+    smtp.login("sendflit", "re_...")
+    smtp.send_message(msg)
+```
+
+## How delivery works
+
+- Each recipient in To, Cc, and Bcc gets their own copy, sent through `POST /v1/emails/batch`.
+- The relay sets an idempotency key from each message, so a client that retries after a timeout doesn't send duplicates.
+- Temporary problems, such as a rate limit or an outage, return a `4xx` SMTP reply, so your client retries later.
+- Permanent problems, such as an unverified domain or a suppressed recipient, return a `5xx` reply and aren't retried.
+
+Verify your sending domain before you use the relay. See the [Quickstart](/quickstart#1-add-your-sending-domain).

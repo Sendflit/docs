@@ -1,0 +1,90 @@
+---
+title: "React email templates"
+description: "Build email-safe templates with React components and render them to HTML for SendFlit."
+---
+
+`@sendflit/email-components` provides React components for building email templates. They use table-based layout and inline styles, so they render correctly in Outlook and Gmail. The package has no rendering dependency: `render()` wraps React's own `renderToStaticMarkup`.
+
+## Install
+
+```bash
+npm install @sendflit/email-components react react-dom
+```
+
+Requires React 18 or later and Node.js 18 or later.
+
+## Build a template
+
+```tsx
+import {
+  render, Html, Body, Container, Section, Heading, Text, Button, Preview,
+} from "@sendflit/email-components";
+
+function WelcomeEmail({ name, actionUrl }: { name: string; actionUrl: string }) {
+  return (
+    <Html>
+      <Preview>Welcome, {name}. Let's get you sending.</Preview>
+      <Body>
+        <Container>
+          <Section>
+            <Heading>Welcome, {name}</Heading>
+            <Text>Thanks for signing up. Verify your domain to start sending.</Text>
+            <Button href={actionUrl}>Verify your domain</Button>
+          </Section>
+        </Container>
+      </Body>
+    </Html>
+  );
+}
+
+const html = render(<WelcomeEmail name="Ada" actionUrl="https://app.sendflit.com/domains" />);
+```
+
+## Send the rendered HTML
+
+Pass the output of `render()` to the [Node.js SDK](/sdks/node):
+
+```ts
+import SendFlit from "@sendflit/sdk";
+
+const sendflit = new SendFlit({ apiKey: process.env.SENDFLIT_API_KEY });
+
+await sendflit.send({
+  from: "welcome@yourdomain.com",
+  to: user.email,
+  subject: "Welcome aboard",
+  html,
+});
+```
+
+## Components
+
+| Component | Notes |
+|---|---|
+| `<Html>` | Root wrapper. Sets `lang`, the charset and viewport meta tags, and a CSS reset. |
+| `<Head>` | Slot for extra `<head>` content. |
+| `<Preview>` | Preheader text that inboxes show next to the subject. Hidden in the body. |
+| `<Body>` | Outer wrapper. Accepts a `style` prop for the background color. |
+| `<Container>` | Centers content and caps the width at 600px by default. |
+| `<Section>` | A padded block. Most templates are built from these. |
+| `<Row>` / `<Column>` | Table-based multi-column layout. |
+| `<Heading as="h1">` through `h6` | Sized and weighted per level. |
+| `<Text>` | Body paragraph. |
+| `<Button href>` | Background color is set on the table cell, so Outlook renders it. |
+| `<Link href>` | Styled inline link. |
+| `<Hr>` | Horizontal rule. |
+| `<Img src alt width height>` | Defaults to `display:block` and no border. |
+
+Every component accepts a `style` prop (a `React.CSSProperties` object) to override its defaults.
+
+## render()
+
+`render(element)` returns a complete HTML document string starting with `<!doctype html>`.
+
+<Warning>
+`render()` runs on the server only, because it imports `react-dom/server`. Call it from a route handler, a server action, or other server code. Don't call it from a client component.
+</Warning>
+
+## Why the components look like this
+
+Email clients render HTML much more narrowly than browsers do. Outlook (desktop) ignores flexbox and grid, Gmail strips some `<style>` blocks, and tables with zeroed padding are the one layout every client handles consistently. That's why every component is built from tables with inline styles.

@@ -1,0 +1,104 @@
+---
+title: "Send a welcome email from Node.js"
+description: "Build a sign-up route that sends a welcome email safely, using the SendFlit Node.js SDK and an idempotency key."
+---
+
+In this tutorial you add a welcome email to a Node.js sign-up flow. By the end, every new account gets one welcome email, even if the sign-up request is retried.
+
+<Note>
+**You'll need:** a verified sending domain, an API key with the `sending` scope, Node.js 18+, and an Express app. See the [Quickstart](/quickstart) if you haven't set these up.
+</Note>
+
+<Steps>
+  <Step title="Install the SDK">
+    <CodeGroup>
+    ```bash npm
+    npm install @sendflit/sdk express
+    ```
+    ```bash pnpm
+    pnpm add @sendflit/sdk express
+    ```
+    </CodeGroup>
+
+    The SDK has no dependencies of its own. Install it once your package is published; until then, see the [SDK status table](/).
+  </Step>
+
+  <Step title="Create the client">
+    Store the key in an environment variable. Never hard-code it.
+
+    ```js
+    // lib/sendflit.js
+    import SendFlit from "@sendflit/sdk";
+
+    export const sendflit = new SendFlit({ apiKey: process.env.SENDFLIT_API_KEY });
+    ```
+  </Step>
+
+  <Step title="Send on sign-up, with an idempotency key">
+    The key identifies the business event, not the request. Using the user's ID means a retried request sends the same email once.
+
+    ```js
+    // routes/signup.js
+    import express from "express";
+    import { sendflit } from "../lib/sendflit.js";
+
+    const app = express();
+    app.use(express.json());
+
+    app.post("/signup", async (req, res) => {
+      const { email, name } = req.body;
+      const user = await createUser({ email, name }); // your code
+
+      await sendflit.send({
+        from: "hello@yourdomain.com",
+        to: user.email,
+        subject: `Welcome, ${name}`,
+        html: `<p>Thanks for signing up, ${name}.</p><p><a href="https://app.yourdomain.com/start">Get started</a></p>`,
+      }, `welcome-${user.id}`);
+
+      res.status(201).json({ id: user.id });
+    });
+
+    app.listen(3000);
+    ```
+
+    <Warning>
+    Send the welcome email after the user is saved, not before. If the save fails, nothing is sent.
+    </Warning>
+  </Step>
+
+  <Step title="Handle failures">
+    Retryable failures (`429` and `5xx`) are retried by the SDK. A permanent failure, such as an unverified domain (`403`), is thrown, so log it and alert:
+
+    ```js
+    import { SendFlitError } from "@sendflit/sdk";
+
+    try {
+      await sendflit.send(email, `welcome-${user.id}`);
+    } catch (err) {
+      if (err instanceof SendFlitError && err.status === 403) {
+        console.error("Domain not verified or recipient suppressed", err.body);
+      }
+      throw err;
+    }
+    ```
+
+    See [Errors, retries and limits](/reference/errors) for every status code.
+  </Step>
+
+  <Step title="Test it">
+    Sign up with your own address. Then check the email's status:
+
+    ```bash
+    curl https://api.sendflit.com/v1/emails/<id> \
+      -H "Authorization: Bearer $SENDFLIT_KEY"
+    ```
+
+    Retry the same sign-up request with the same `user.id` to confirm the second send doesn't deliver a duplicate.
+  </Step>
+</Steps>
+
+## Next
+
+- [Handle bounces with webhooks](/tutorials/handle-bounces) to keep bad addresses out of future sends.
+- [Idempotency](/guides/idempotency) for a deeper look at safe retries.

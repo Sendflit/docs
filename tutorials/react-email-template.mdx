@@ -1,0 +1,100 @@
+---
+title: "Build and send a React email template"
+description: "Create a reusable email template with React components, render it to HTML, preview it, and send it through the SendFlit API."
+---
+
+Email clients render HTML differently from browsers. The `@sendflit/email-components` package gives you components that use the table-based, inline-styled markup that renders reliably in Outlook and Gmail. In this tutorial you build a password-reset template, preview it locally, and send it.
+
+<Note>
+**You'll need:** Node.js 18+, React 18+, and a verified sending domain with an API key.
+</Note>
+
+<Steps>
+  <Step title="Install the packages">
+    ```bash
+    npm install @sendflit/email-components @sendflit/sdk react react-dom
+    ```
+  </Step>
+
+  <Step title="Build the template">
+    ```tsx
+    // emails/password-reset.tsx
+    import {
+      Html, Head, Preview, Body, Container, Section, Heading, Text, Button, Hr,
+    } from "@sendflit/email-components";
+
+    export function PasswordReset({ name, resetUrl }: { name: string; resetUrl: string }) {
+      return (
+        <Html>
+          <Head />
+          <Preview>Reset your password. The link expires in 30 minutes.</Preview>
+          <Body style={{ backgroundColor: "#f5f5f5" }}>
+            <Container>
+              <Section>
+                <Heading as="h2">Reset your password</Heading>
+                <Text>Hi {name}, use the button below to choose a new password.</Text>
+                <Button href={resetUrl}>Reset password</Button>
+                <Hr />
+                <Text>If you didn't ask for this, you can ignore this email.</Text>
+              </Section>
+            </Container>
+          </Body>
+        </Html>
+      );
+    }
+    ```
+
+    Every component accepts a `style` prop if you want to change its defaults.
+  </Step>
+
+  <Step title="Render and preview">
+    `render()` returns a complete HTML document. Write it to a file while you design:
+
+    ```tsx
+    // scripts/preview.tsx
+    import { writeFileSync } from "node:fs";
+    import { render } from "@sendflit/email-components";
+    import { PasswordReset } from "../emails/password-reset";
+
+    writeFileSync(
+      "preview.html",
+      render(<PasswordReset name="Ada" resetUrl="https://app.example.com/reset/abc" />)
+    );
+    ```
+
+    ```bash
+    npx tsx scripts/preview.tsx && open preview.html
+    ```
+
+    <Warning>
+    `render()` runs on the server only, because it uses `react-dom/server`. Don't call it from a client component.
+    </Warning>
+  </Step>
+
+  <Step title="Send it">
+    ```ts
+    import { render } from "@sendflit/email-components";
+    import SendFlit from "@sendflit/sdk";
+    import { PasswordReset } from "./emails/password-reset";
+
+    const sendflit = new SendFlit({ apiKey: process.env.SENDFLIT_API_KEY });
+
+    export async function sendPasswordReset(user: { id: string; email: string; name: string }, resetUrl: string) {
+      const html = render(<PasswordReset name={user.name} resetUrl={resetUrl} />);
+      await sendflit.send({
+        from: "security@yourdomain.com",
+        to: user.email,
+        subject: "Reset your password",
+        html,
+      }, `password-reset-${user.id}-${Date.now()}`);
+    }
+    ```
+
+    The idempotency key includes a timestamp so each reset request sends its own email. Use a stable key for emails that must be sent once per event.
+  </Step>
+</Steps>
+
+## Next
+
+- Store the rendered HTML as a reusable template with `POST /v1/templates`, or send through the API with `template_name` and `variables`.
+- See the [component reference](/sdks/templates/react-email) for every component.

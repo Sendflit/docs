@@ -1,0 +1,55 @@
+---
+title: "Introduction"
+description: "SendFlit is a transactional email API for developers and AI agents. Send, track and manage email with one API key."
+---
+
+SendFlit sends transactional email, such as receipts, password resets, and notifications, through a REST API, SDKs in eight languages, SMTP, and an MCP server for AI agents.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Verify a domain, create a key, and send your first email in about 15 minutes.
+  </Card>
+  <Card title="Tutorials" icon="graduation-cap" href="/tutorials/node-welcome-email">
+    Build a welcome email, handle bounces with webhooks, and use templates.
+  </Card>
+  <Card title="SDKs" icon="code" href="/sdks/node">
+    Official clients for Node.js, Python, Go, Ruby, PHP, Java, and .NET, plus React email components.
+  </Card>
+  <Card title="API reference" icon="book" href="/reference/api-overview">
+    Endpoints, authentication, errors, limits, and webhook events.
+  </Card>
+</CardGroup>
+
+## How it works
+
+1. **Verify a domain.** Publish three DNS records so receiving servers trust your mail. See [Domains](/concepts/domains).
+2. **Create an API key.** Choose the smallest scope the key needs. See [API keys](/concepts/api-keys).
+3. **Send.** Call the API, an SDK, or SMTP. Each send returns an `id` you can track.
+4. **Listen.** Subscribe to [webhooks](/reference/webhooks) for delivery, bounce, and complaint events, and suppress addresses automatically.
+
+## Choose how to integrate
+
+| You have | Use |
+|---|---|
+| An application in a supported language | An [SDK](/sdks/node) |
+| An app or device that only speaks SMTP | The [SMTP relay](/guides/smtp) |
+| An existing Resend integration | [Switching from Resend](/guides/switching-from-resend) |
+| An AI agent that should send email or manage contacts | The [MCP server](/guides/mcp-server) |
+| Any other HTTP client | The [REST API](/reference/api-overview) |
+
+## SDK install status
+
+| Language | Package | Install | Status |
+|---|---|---|---|
+| Node.js | `@sendflit/sdk` | `npm install @sendflit/sdk` | Pending registry publish |
+| Python | `sendflit` | `pip install sendflit` | Pending registry publish |
+| Go | `github.com/Sendflit/sendflit-go` | `go get github.com/Sendflit/sendflit-go` | Pending public repo |
+| Ruby | `sendflit` | `gem install sendflit` | Pending registry publish |
+| PHP | `sendflit/sendflit` | `composer require sendflit/sendflit` | Pending Packagist submission |
+| Java | `com.sendflit:sendflit` | Maven or Gradle | Pending Maven Central |
+| .NET | `SendFlit` | `dotnet add package SendFlit` | Pending NuGet publish |
+| React | `@sendflit/email-components` | `npm install @sendflit/email-components` | Pending registry publish |
+
+<Note>
+A package's install command fails with "not found" until it's published. Check this table for the current state.
+</Note>

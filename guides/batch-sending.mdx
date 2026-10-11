@@ -1,0 +1,48 @@
+---
+title: "Batch sending"
+description: "Send up to 100 emails in one request, read per-message results, and handle partial failures."
+---
+
+`POST /v1/emails/batch` sends up to 100 emails in one call. It's the right choice for many separate, one-recipient emails, such as a notification to each member of a team.
+
+## Send a batch
+
+```bash
+curl -X POST https://api.sendflit.com/v1/emails/batch \
+  -H "Authorization: Bearer $SENDFLIT_KEY" \
+  -H "Idempotency-Key: invoices-2026-09" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "emails": [
+      {"from": "billing@yourdomain.com", "to": "a@example.com", "subject": "Invoice 101", "html": "<p>Invoice 101</p>"},
+      {"from": "billing@yourdomain.com", "to": "b@example.com", "subject": "Invoice 102", "html": "<p>Invoice 102</p>"}
+    ]
+  }'
+```
+
+The body is an object with an `emails` array. Each message is independent. The response is `{"results": [...], "count": N}`, with one result per message in the same order. A message that succeeds has its `id` and `status`. A message that fails has `"status": "failed"`, the `to` address, and an `error`, so one bad recipient doesn't fail the rest.
+
+<Tabs>
+  <Tab title="Node.js">
+    ```js
+    const { results } = await sendflit.batch(messages, `invoices-${period}`);
+
+    results.forEach((r, i) => {
+      if (r.error) console.error(`Message ${i} failed`, r.error);
+    });
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    res = sf.batch(messages, idempotency_key=f"invoices-{period}")
+    failed = [r for r in res["results"] if r.get("error")]
+    ```
+  </Tab>
+</Tabs>
+
+## Limits and tips
+
+- Up to 100 messages per batch. Split larger lists into chunks.
+- Use one idempotency key for the whole batch, derived from the job, so a retried job doesn't resend messages that already went out.
+- Check each result. Don't assume the whole batch succeeded because the request did.
+- Quotas and rate limits apply to each message. See [Limits](/reference/errors#limits).
