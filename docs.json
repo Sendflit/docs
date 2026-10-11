@@ -69,10 +69,10 @@
               "guides/dns/ionos",
               "guides/dns/namecheap",
               "guides/dns/porkbun",
-              "guides/dns/route53",
               "guides/dns/squarespace",
               "guides/dns/strato",
-              "guides/dns/vercel"
+              "guides/dns/vercel",
+              "guides/dns/other-providers"
             ]
           }
         ]
