@@ -1,0 +1,69 @@
+---
+title: "Add SendFlit DNS records at Amazon Route 53"
+description: "Step-by-step: publish the DKIM, SPF and DMARC records for your domain at Amazon Route 53, then verify it with SendFlit."
+---
+
+Publish the three records SendFlit shows you for your domain at Amazon Route 53, then verify the domain. This takes about 10 minutes, plus DNS propagation time.
+
+Start from the **Domains** page in your SendFlit dashboard. It lists the exact names and values for your domain. Copy them from there, not from this page.
+
+## Before you start
+
+- Your domain's DNS records from the SendFlit dashboard.
+- Access to Amazon Route 53 for the domain.
+
+## Steps
+
+<Steps>
+  <Step title="Open your DNS settings">
+    Route 53 console → **Hosted zones** → select the zone for your domain → **Create record**.
+    <Frame caption="The records for your domain in the SendFlit dashboard. Copy each value from here.">
+      <img src="/images/dns/domain-records.png" alt="SendFlit dashboard: DNS records for a domain, with DKIM, sending (SPF) and DMARC rows" />
+    </Frame>
+    {/* Provider screen to add (optional): the Amazon Route 53 DNS page with the record form open */}
+  </Step>
+  <Step title="Add the DKIM record">
+    Type: **TXT**. Name: `sendflit._domainkey` (or the name the dashboard shows). Value: copy the full value from the dashboard.
+    {/* Provider screen to add (optional): a DKIM TXT record filled in at Amazon Route 53 */}
+  </Step>
+  <Step title="Add the SPF record">
+    Type: **TXT**. Name and value: copy both from the **Enable sending** section of the dashboard. Depending on your setup this record is on the root domain (`@`) or on your return-path subdomain (for example `send.yourdomain.com`). Use the name the dashboard shows, not the one you expect.
+    If you already have an SPF record that starts with `v=spf1`, don't add a second one. Add the `include:` part from the dashboard to the existing record instead.
+  </Step>
+  <Step title="Add the DMARC record">
+    Type: **TXT**. Name: `_dmarc`. Value: copy it from the dashboard.
+  </Step>
+  <Step title="Save and verify">
+    Save all records. Then verify the domain:
+
+    ```bash
+    curl -X POST https://api.sendflit.com/v1/domains/<domain_id>/verify \
+      -H "Authorization: Bearer $SENDFLIT_KEY"
+    ```
+
+    Or click **Verify** in the dashboard. If verification fails, wait a few minutes and try again.
+  </Step>
+</Steps>
+
+## Amazon Route 53 notes
+
+- Choose **TXT**. Leave the record name empty for the root record.
+- Route 53 needs the value wrapped in double quotes. Paste it with the quotes included.
+- A DKIM value longer than 255 characters must be split into quoted chunks separated by a space. Route 53 accepts this format.
+
+## Check the records yourself
+
+Before you verify, you can check that the records are live:
+
+```bash
+dig TXT sendflit._domainkey.yourdomain.com +short
+dig TXT yourdomain.com +short
+dig TXT _dmarc.yourdomain.com +short
+```
+
+Each command should print the value you added. If nothing appears after 30 minutes, check that the record is saved at Amazon Route 53 and that the name matches.
+
+## Next steps
+
+- [DNS overview](/guides/dns/overview): the records, common mistakes, and troubleshooting.
+- [Verify your domain](/concepts/domains): what verification checks.

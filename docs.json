@@ -55,6 +55,25 @@
               "guides/switching-from-resend",
               "guides/mcp-server"
             ]
+          },
+          {
+            "group": "DNS guides",
+            "pages": [
+              "guides/dns/overview",
+              "guides/dns/cloudflare",
+              "guides/dns/gandi",
+              "guides/dns/godaddy",
+              "guides/dns/dreamhost",
+              "guides/dns/hetzner",
+              "guides/dns/hostinger",
+              "guides/dns/ionos",
+              "guides/dns/namecheap",
+              "guides/dns/porkbun",
+              "guides/dns/route53",
+              "guides/dns/squarespace",
+              "guides/dns/strato",
+              "guides/dns/vercel"
+            ]
           }
         ]
       },

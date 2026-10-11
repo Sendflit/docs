@@ -1,0 +1,49 @@
+---
+title: "DNS guides"
+description: "Add the records SendFlit needs at your DNS provider. Pick your provider for a step-by-step guide."
+---
+
+SendFlit needs three DNS records to send from your domain. They prove you own the domain and let mailbox providers trust your mail. You add them at whoever hosts your DNS. The steps are the same everywhere, only the screens differ.
+
+## The records
+
+Each domain gets the records below. The dashboard shows the exact name and value for your domain, and that's the source of truth.
+
+<Frame caption="SendFlit dashboard: the records for a domain">
+  <img src="/images/dns/domain-records.png" alt="SendFlit dashboard: DNS records for a domain" />
+</Frame>
+
+| Record | Type | Name | Purpose |
+|---|---|---|---|
+| DKIM | TXT | `sendflit._domainkey` | Signs your outgoing mail. Required. |
+| Sending (SPF) | TXT | the **Enable sending** name shown in the dashboard | Authorizes SendFlit to send for your domain. Required. It's on your root domain or on your return-path subdomain, such as `send.yourdomain.com`. |
+| DMARC | TXT | `_dmarc` | Tells mailbox providers what to do with mail that fails the checks. Recommended. |
+
+If the dashboard shows an MX record for your return-path subdomain, publish it too. Your root domain's own MX records stay untouched.
+
+## Common mistakes
+
+- **Two SPF records.** A domain may have only one record that starts with `v=spf1` on the same name. Merge into the existing one.
+- **Typing the full name twice.** Many providers add your domain automatically. Enter only the part before it, or `@` for the root.
+- **Quotes around values.** Paste the value as-is. Some consoles add quotes themselves. Don't add a second pair.
+- **Old records still cached.** Propagation can take up to a few hours. Wait, then verify again.
+
+## Choose your provider
+
+<CardGroup cols={3}>
+  <Card title="Cloudflare" href="/guides/dns/cloudflare" />
+  <Card title="Gandi" href="/guides/dns/gandi" />
+  <Card title="GoDaddy" href="/guides/dns/godaddy" />
+  <Card title="DreamHost" href="/guides/dns/dreamhost" />
+  <Card title="Hetzner" href="/guides/dns/hetzner" />
+  <Card title="Hostinger" href="/guides/dns/hostinger" />
+  <Card title="IONOS" href="/guides/dns/ionos" />
+  <Card title="Namecheap" href="/guides/dns/namecheap" />
+  <Card title="Porkbun" href="/guides/dns/porkbun" />
+  <Card title="Amazon Route 53" href="/guides/dns/route53" />
+  <Card title="Squarespace" href="/guides/dns/squarespace" />
+  <Card title="STRATO" href="/guides/dns/strato" />
+  <Card title="Vercel" href="/guides/dns/vercel" />
+</CardGroup>
+
+Your provider isn't listed? The steps are the same. Find the DNS page for your domain, add three TXT records using the table above, then verify.
