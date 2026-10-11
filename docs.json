@@ -81,6 +81,16 @@
               "guides/dns/squarespace",
               "guides/dns/strato",
               "guides/dns/vercel",
+              "guides/dns/name-com",
+              "guides/dns/dynadot",
+              "guides/dns/bluehost",
+              "guides/dns/hostgator",
+              "guides/dns/network-solutions",
+              "guides/dns/wix",
+              "guides/dns/google-cloud-dns",
+              "guides/dns/azure-dns",
+              "guides/dns/digitalocean",
+              "guides/dns/ovhcloud",
               "guides/dns/other-providers"
             ]
           }

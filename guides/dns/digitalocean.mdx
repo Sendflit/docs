@@ -1,0 +1,58 @@
+---
+title: "Add SendFlit DNS records at DigitalOcean"
+description: "Step-by-step: publish the DKIM, SPF and DMARC records for your domain at DigitalOcean, then verify it with SendFlit."
+---
+
+Publish the three records SendFlit shows you for your domain at DigitalOcean, then verify the domain. This takes about 10 minutes, plus DNS propagation time.
+
+Copy the exact names and values from **Domains** in your SendFlit dashboard, not from this page.
+
+## Before you start
+
+- Your domain's DNS records from the SendFlit dashboard.
+- Access to DigitalOcean for the domain.
+
+## Steps
+
+<Steps>
+  <Step title="Open your DNS settings">
+    DigitalOcean control panel → **Networking** → **Domains** → select your domain → **Add record**.
+  </Step>
+  <Step title="Add the DKIM record">
+    Type: **TXT**. Name: `sendflit._domainkey` (or the name the dashboard shows). Value: copy the full value from the dashboard.
+  </Step>
+  <Step title="Add the sending (SPF) record">
+    Type: **TXT**. Name and value: copy both from the **Enable sending** section of the dashboard. Use the name the dashboard shows, which is either the root domain or your return-path subdomain.
+    If a record already starts with `v=spf1` on the same name, merge the new part into it instead of adding a second one.
+  </Step>
+  <Step title="Add the DMARC record">
+    Type: **TXT**. Name: `_dmarc`. Value: copy it from the dashboard.
+  </Step>
+  <Step title="Save and verify">
+    Save the records, then click **Verify DNS records** in the dashboard, or run:
+
+    ```bash
+    curl -X POST https://api.sendflit.com/v1/domains/<domain_id>/verify \
+      -H "Authorization: Bearer $SENDFLIT_KEY"
+    ```
+  </Step>
+</Steps>
+
+## DigitalOcean notes
+
+- Choose **TXT**. Use `@` for the root record.
+
+## Check the records yourself
+
+```bash
+dig TXT sendflit._domainkey.yourdomain.com +short
+dig TXT yourdomain.com +short
+dig TXT _dmarc.yourdomain.com +short
+```
+
+Each command should print the value you added.
+
+## Next steps
+
+- [DNS overview](/guides/dns/overview): the records and common mistakes.
+- [Any other provider](/guides/dns/other-providers): the same steps for any host.
