@@ -15,8 +15,12 @@
         "href": "https://sendflit.com"
       },
       {
-        "type": "github",
+        "label": "GitHub",
         "href": "https://github.com/Sendflit"
+      },
+      {
+        "label": "Support",
+        "href": "mailto:support@sendflit.com"
       }
     ],
     "primary": {
@@ -154,6 +158,9 @@
   "favicon": "/favicon.svg",
   "footer": {
     "socials": {
+      "x": "https://x.com/sendflit",
+      "linkedin": "https://www.linkedin.com/company/sendflit/",
+      "youtube": "https://www.youtube.com/@sendflit",
       "github": "https://github.com/Sendflit"
     }
   }
